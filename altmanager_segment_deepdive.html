@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alt Asset Managers — Segment Deep Dive | Summit Management</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; }
+    button { font-family: inherit; }
+    p { margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ─── PURE SVG LINE CHART (no external library) ───────────────────────────
+    const SvgLineChart = ({ data, colors }) => {
+      const [hovered, setHovered] = useState(null);
+      const W = 520, H = 220;
+      const pL = 44, pR = 16, pT = 12, pB = 44;
+      const cW = W - pL - pR, cH = H - pT - pB;
+      const firms = Object.keys(colors);
+      const years = data.map(d => d.year);
+      const xOf = i => pL + (i / (years.length - 1)) * cW;
+      const yOf = v => pT + cH - (v / 100) * cH;
+      const gridYs = [0, 25, 50, 75, 100];
+      return (
+        <div style={{ position:"relative" }}>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", display:"block" }}>
+            {/* grid */}
+            {gridYs.map(v => (
+              <g key={v}>
+                <line x1={pL} x2={W - pR} y1={yOf(v)} y2={yOf(v)} stroke="#e2e8f0" strokeWidth={1} />
+                <text x={pL - 5} y={yOf(v) + 4} fontSize={10} fill="#94a3b8" textAnchor="end">{v}%</text>
+              </g>
+            ))}
+            {/* x labels */}
+            {years.map((yr, i) => (
+              <text key={yr} x={xOf(i)} y={H - pB + 14} fontSize={10} fill="#94a3b8" textAnchor="middle">{yr}</text>
+            ))}
+            {/* lines */}
+            {firms.map(f => (
+              <polyline key={f}
+                points={data.map((d, i) => `${xOf(i)},${yOf(d[f])}`).join(' ')}
+                fill="none" stroke={colors[f]} strokeWidth={hovered === f ? 3 : 2}
+                opacity={hovered && hovered !== f ? 0.25 : 1}
+                style={{ transition:"opacity 0.15s" }}
+              />
+            ))}
+            {/* dots */}
+            {firms.map(f => data.map((d, i) => (
+              <circle key={`${f}-${i}`} cx={xOf(i)} cy={yOf(d[f])} r={3}
+                fill={colors[f]} opacity={hovered && hovered !== f ? 0.2 : 1}
+                style={{ transition:"opacity 0.15s" }}
+              />
+            )))}
+            {/* hover value labels on last point */}
+            {firms.map(f => {
+              const last = data[data.length - 1];
+              return (
+                <text key={`lbl-${f}`} x={xOf(data.length - 1) + 5} y={yOf(last[f]) + 4}
+                  fontSize={10} fontWeight={700} fill={colors[f]}
+                  opacity={hovered && hovered !== f ? 0.2 : 1}>{last[f]}%</text>
+              );
+            })}
+          </svg>
+          {/* legend */}
+          <div style={{ display:"flex", gap:12, flexWrap:"wrap", justifyContent:"center", marginTop:4 }}>
+            {firms.map(f => (
+              <div key={f} onMouseEnter={() => setHovered(f)} onMouseLeave={() => setHovered(null)}
+                style={{ display:"flex", alignItems:"center", gap:5, cursor:"default",
+                  opacity: hovered && hovered !== f ? 0.35 : 1, transition:"opacity 0.15s" }}>
+                <div style={{ width:20, height:3, background:colors[f], borderRadius:2 }} />
+                <span style={{ fontSize:11, fontWeight:700, color:colors[f] }}>{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const FC = { BAM:"#0d9488", BX:"#1e3a5f", KKR:"#1d4ed8", APO:"#7c3aed", CG:"#b91c1c" };
+    const G  = { bg:"#f8fafc", border:"#e2e8f0", muted:"#64748b", text:"#0f172a", card:"white" };
+    const SEG_COLORS_MAP = {
+      "Infrastructure":"#0891b2","Renewables":"#16a34a","Real Estate":"#7c3aed",
+      "Private Equity":"#ea580c","Credit":"#2563eb","Credit & Ins.":"#2563eb",
+      "Multi-Asset":"#94a3b8","Real Assets":"#059669","Inv. Solutions":"#f59e0b",
+    };
+
+    // ─── FIRM META ───────────────────────────────────────────────────────────────
+    const FIRMS = [
+      { id:"BAM", name:"Brookfield AM",  aum:"$1.18T", identity:"Real Assets + Credit",      ceo:"Bruce Flatt",      ceoNote:"Contrarian, owner-operator, downside-first" },
+      { id:"BX",  name:"Blackstone",     aum:"$1.27T", identity:"PE + Credit + RE",           ceo:"Steve Schwarzman", ceoNote:"Mega-cap dealmaker, retail channel pioneer" },
+      { id:"KKR", name:"KKR",           aum:"$744B",  identity:"PE → Credit + Real Assets",  ceo:"Scott Nuttall",    ceoNote:"Operational value creation, insurance float build" },
+      { id:"APO", name:"Apollo",         aum:"$840B",  identity:"Credit-first (IG engine)",   ceo:"Marc Rowan",       ceoNote:"Redefined alt mgmt around origination at scale" },
+      { id:"CG",  name:"Carlyle",        aum:"$477B",  identity:"PE + Credit + Secondaries",  ceo:"Harvey Schwartz",  ceoNote:"Buyout DNA, rebuilding via credit + AlpInvest" },
+    ];
+    const SEG_MIX = {
+      BAM: { "Infrastructure":21, "Renewables":10, "Real Estate":28, "Private Equity":14, "Credit":27 },
+      BX:  { "Real Estate":25, "Private Equity":33, "Credit & Ins.":35, "Multi-Asset":7 },
+      KKR: { "Private Equity":32, "Credit":43, "Real Assets":25 },
+      APO: { "Credit":82, "Private Equity":12, "Real Assets":6 },
+      CG:  { "Private Equity":35, "Credit":44, "Inv. Solutions":21 },
+    };
+
+    // ─── CREDIT DATA ─────────────────────────────────────────────────────────────
+    const CREDIT_EDU = [
+      { term:"Direct Lending", color:"#2563eb", def:"Private loans made directly to companies, bypassing banks. Senior secured, floating rate. Primary private credit product — bank retreat post-2008 created this market.", risk:"Low-Med", yield:"8–12%" },
+      { term:"IG Private Credit", color:"#1d4ed8", def:"Loans to BBB+ rated companies. Lower yield but enormous volume. Apollo via Athene is the only firm doing this at true industrial scale (~$500B+). Requires insurance float to make economic sense.", risk:"Low", yield:"5–7%" },
+      { term:"Leveraged / HY", color:"#7c3aed", def:"Below-investment-grade loans and bonds. Higher yield, higher risk. Traditional leveraged buyout finance. CLOs package these into tranches sold to institutional investors.", risk:"Med-High", yield:"9–14%" },
+      { term:"Distressed Debt", color:"#b91c1c", def:"Buying debt of troubled companies at a deep discount, profiting through restructuring or recovery. Original Howard Marks / Oaktree DNA. Opportunistic — best in crises. Not a volume game.", risk:"High", yield:"15–25%" },
+      { term:"Asset-Based Finance", color:"#0891b2", def:"Loans backed by pools of real assets: consumer loans, mortgages, equipment leases. Banks retreating from these = $6T+ structural opportunity. KKR's defining bet since 2022.", risk:"Low-Med", yield:"7–11%" },
+      { term:"CLOs", color:"#059669", def:"Collateralized Loan Obligations — pools of leveraged loans sliced into tranches. Blackstone is world's largest CLO manager. Fee-generative structural product, not opportunistic.", risk:"Tranche-dependent", yield:"5–20%" },
+      { term:"Insurance Float", color:"#d97706", def:"Owning an insurer (life/annuities) generates perpetual, low-cost capital from premiums. Apollo (Athene), KKR (Global Atlantic), Carlyle, BX building. The structural moat of the credit world — see panel below.", risk:"Structural", yield:"Spread over liabilities" },
+    ];
+
+    const CREDIT_FIRMS = [
+      { firm:"BAM", pct:27, label:"Distressed + HY + Direct (via Oaktree)",
+        description:"Oaktree is the vehicle — Howard Marks' distressed debt DNA. The most contrarian credit approach in the group: cycle-turning and asymmetric, not volume-driven. Fully consolidated 2025.",
+        subStrategies:[
+          { name:"Distressed debt / Oaktree Opps funds", pctOfSeg:30, color:"#b91c1c" },
+          { name:"High yield bonds", pctOfSeg:24, color:"#7c3aed" },
+          { name:"Performing credit / direct lending", pctOfSeg:20, color:"#2563eb" },
+          { name:"CLOs", pctOfSeg:12, color:"#059669" },
+          { name:"Real estate credit", pctOfSeg:9, color:"#9333ea" },
+          { name:"Infrastructure credit", pctOfSeg:5, color:"#0891b2" },
+        ],
+        strength:3,
+        evolution:"Oaktree 61% acquired 2019 for ~$4.7B. Full acquisition 2025 ($3B for remaining 26%). Credit grew 13%→27% of AUM in 5yr. Strategy: layer a world-class credit brain onto real assets core. Sub-strategy mix has shifted slightly toward direct lending but distressed remains the identity.",
+        keyDiff:"Distressed + HY orientation is contrarian vs. peers all racing into direct lending. Oaktree's cycle-turning fits Flatt's buy-when-others-sell philosophy. But: credit is still the newest/smallest pillar and the Oaktree integration is still maturing under full ownership.",
+        isBig:false },
+
+      { firm:"BX", pct:35, label:"Direct Lending + CLO + Insurance (BCRED / BXCI)",
+        description:"BXCI (Credit & Insurance) is the vehicle. Largest BDC globally (BCRED), world's largest CLO manager, and a growing insurance arm (BIS). Senior secured focus — 96% of BCRED is senior secured. Scale-driven, not specialist-driven.",
+        subStrategies:[
+          { name:"BCRED / BXSL (direct lending BDCs)", pctOfSeg:42, color:"#2563eb" },
+          { name:"CLO platform (world's largest)", pctOfSeg:27, color:"#059669" },
+          { name:"BIS — Blackstone Insurance Solutions", pctOfSeg:18, color:"#d97706" },
+          { name:"Multi-asset / distressed credit", pctOfSeg:13, color:"#b91c1c" },
+        ],
+        strength:4,
+        evolution:"Real estate was the founding identity. Credit surpassed RE as #1 segment by 2024. BCRED launched Jan 2021, became the world's largest BDC within 18 months. BIS (insurance) building fast — this is the differentiation vector going forward. Credit 20%→35% of AUM.",
+        keyDiff:"BX's scale in senior secured direct lending and CLO management is real. But credit was an expansion into an established market, not a founding identity. BIS (insurance) is where the next phase of differentiation lives if they can build the float model.",
+        isBig:true },
+
+      { firm:"KKR", pct:43, label:"Leveraged Credit + Direct Lending + ABF (Global Atlantic)",
+        description:"Three-leg credit platform: leveraged credit (BSL/CLOs/HY), direct lending (upper middle market), and the fastest-growing bet — Asset-Based Finance (ABF). Global Atlantic is the insurance float engine. ABF = buying real economy loan portfolios from banks retreating under Basel IV.",
+        subStrategies:[
+          { name:"Leveraged credit (BSL / CLOs / HY)", pctOfSeg:38, color:"#7c3aed" },
+          { name:"Direct lending (upper middle market)", pctOfSeg:25, color:"#2563eb" },
+          { name:"Asset-Based Finance (ABF)", pctOfSeg:24, color:"#0891b2" },
+          { name:"Real estate credit", pctOfSeg:8, color:"#9333ea" },
+          { name:"Global Atlantic (insurance float layer)", pctOfSeg:5, color:"#d97706" },
+        ],
+        strength:4,
+        evolution:"Global Atlantic acquired 2021 ($4.7B) — KKR's insurance float play. ABF bet started 2022, $30B+ in portfolios acquired from banks in 24 months. Credit platform: 30%→43% of AUM. Each move was deliberate and sequenced: insurance first, ABF second, scale third.",
+        keyDiff:"ABF is the genuinely differentiated bet. No other firm in this group has committed to this at KKR's scale. Banks retreating from consumer/equipment/mortgage lending = structural, multi-decade supply of assets. If ABF becomes the dominant private credit product of the 2030s, KKR wins.",
+        isBig:true },
+
+      { firm:"APO", pct:82, label:"IG Private Credit (Athene) + Origination Engine at Scale",
+        description:"Apollo is doing a fundamentally different TYPE of credit than peers. ~65% of their credit is INVESTMENT GRADE — safe, lower-yield, enormous-volume, feeding Athene's insurance liabilities. The Atlas platform originates $150B+/year in private IG credit. This is not a fund strategy — it is a structural business model.",
+        subStrategies:[
+          { name:"Yield / IG private credit (via Athene)", pctOfSeg:64, color:"#1d4ed8" },
+          { name:"Performing credit / direct lending", pctOfSeg:15, color:"#2563eb" },
+          { name:"Distressed / dislocated (original DNA)", pctOfSeg:10, color:"#b91c1c" },
+          { name:"Hybrid / mezzanine / preferred equity", pctOfSeg:6, color:"#0891b2" },
+          { name:"Asset-backed finance", pctOfSeg:5, color:"#059669" },
+        ],
+        strength:5,
+        evolution:"Leon Black founded Apollo on distressed debt (1990). Marc Rowan became CEO 2021 and systematically pivoted to 'origination at scale.' Athene merger (Jan 2022) was the structural inflection point. Credit: 60%→82% of AUM. The IG shift is the most radical business model transformation in the alt mgmt industry in the last decade.",
+        keyDiff:"Apollo is the ONLY firm doing IG private credit at industrial scale (~$500B+). Nobody else has built this. Lower yield per $ but insatiable, self-generating Athene demand = volume compounding → fees compounding. This is not replicable without owning a $200B+ insurance company.",
+        isBig:true },
+
+      { firm:"CG", pct:44, label:"Insurance Solutions + Liquid Credit + Direct Lending (AlpInvest)",
+        description:"Three legs: Insurance Solutions ($87B, fastest-growing — building the Apollo model), Liquid Credit (CLOs, BSL), and Direct Lending (middle market). AlpInvest adds a credit secondaries dimension nobody else in this group has.",
+        subStrategies:[
+          { name:"Insurance Solutions", pctOfSeg:41, color:"#d97706" },
+          { name:"Liquid credit (CLOs / BSL)", pctOfSeg:26, color:"#059669" },
+          { name:"Direct lending (middle market)", pctOfSeg:20, color:"#2563eb" },
+          { name:"Infrastructure credit", pctOfSeg:8, color:"#0891b2" },
+          { name:"Credit secondaries (AlpInvest)", pctOfSeg:5, color:"#7c3aed" },
+        ],
+        strength:3,
+        evolution:"Carlyle historically PE-dominant. Harvey Schwartz (CEO since 2023, ex-Goldman president) is explicitly accelerating credit. Insurance Solutions went from ~$20B→$87B in 3 years — fastest-growing part of the platform. Credit: 20%→44% of AUM. Still building vs. Apollo/KKR.",
+        keyDiff:"AlpInvest's credit secondaries capability is unique in this peer group — buying existing credit fund stakes from LPs who need liquidity. Insurance Solutions directionally correct but 3–5yr behind Apollo/KKR in execution. Middle market direct lending (vs upper middle market like KKR) = different borrower and risk profile.",
+        isBig:false },
+    ];
+
+    // ─── PE DATA ─────────────────────────────────────────────────────────────────
+    const PE_EDU = [
+      { term:"Leveraged Buyout (LBO)", color:"#ea580c", def:"Buying a company using significant debt (~60–70% of deal value), improving it, then selling. Returns from leverage, operations, multiple expansion. The founding product of the PE industry.", risk:"Med-High", yield:"~20–25% gross IRR" },
+      { term:"Growth Equity", color:"#d97706", def:"Minority or majority stakes in fast-growing companies needing capital to expand. Less leverage, more revenue growth dependency. Tech and healthcare dominant. Less financial engineering.", risk:"Med", yield:"~15–20% gross IRR" },
+      { term:"Core PE", color:"#7c3aed", def:"Longer hold periods (10–15yr), lower leverage, quality businesses with stable cash flows. KKR invented this. Matches institutional investors wanting PE-like returns without the 5yr exit pressure.", risk:"Low-Med", yield:"~12–15% gross IRR" },
+      { term:"Hybrid Value", color:"#0891b2", def:"Apollo's invention — sits between credit and equity. Preferred shares, convertibles, structured equity. Downside of debt + upside of equity. Targets companies wanting growth capital without full dilution.", risk:"Low-Med", yield:"~15–20% gross IRR" },
+      { term:"Operational PE", color:"#059669", def:"Buy underperforming businesses, fix operations, then sell or IPO. Brookfield's BBU model. Value from running the company, not financial engineering. Longer hold, more work.", risk:"Med", yield:"~15–20% gross IRR" },
+      { term:"Secondaries", color:"#94a3b8", def:"Buying existing PE fund stakes or LP interests from investors who need early liquidity. Counter-cyclical. Carlyle/AlpInvest is the dominant player here in this peer group.", risk:"Low-Med", yield:"~15–18% gross IRR" },
+    ];
+
+    const PE_FIRMS = [
+      { firm:"BAM", pct:14, label:"Operational Transformation (BBU)",
+        description:"BBU is not traditional PE — it is operational transformation. Brookfield acquires complex or public-to-private businesses, applies operational overhaul, then exits. Returns come from running the company better, not from leverage.",
+        subStrategies:[
+          { name:"Public-to-private (P2P) industrials", pctOfSeg:68, color:"#059669" },
+          { name:"Business services transformations", pctOfSeg:20, color:"#0891b2" },
+          { name:"Cross-BAM ecosystem investments", pctOfSeg:12, color:"#0d9488" },
+        ],
+        strength:3,
+        evolution:"BBU listed 2016. Deliberately the smallest segment — Brookfield sees PE as an adjacency, not a core. Holdings include Clarios (batteries, $13B), BrandSafway (industrial services). Has grown but remains ~14% of AUM by design.",
+        keyDiff:"Only firm in the group where PE is explicitly operational-first, financial-engineering-last. No LBO DNA — closer to a value-add operator than a buyout shop. Not scalable to Blackstone/KKR PE volumes but more differentiated.",
+        isBig:false },
+
+      { firm:"BX", pct:33, label:"Mega-Cap LBO + Growth + Tactical Opportunities",
+        description:"The quintessential mega-cap LBO machine. Flagship corporate PE, Blackstone Growth (tech/consumer), Tactical Opportunities (cross-capital-structure), Life Sciences, and BXPE (retail semi-liquid vehicle). 15% gross IRR since 1987.",
+        subStrategies:[
+          { name:"Corporate PE flagship (mega-cap LBO)", pctOfSeg:46, color:"#ea580c" },
+          { name:"Blackstone Growth (BXG — tech/consumer)", pctOfSeg:18, color:"#d97706" },
+          { name:"Tactical Opportunities (cross-capital structure)", pctOfSeg:20, color:"#7c3aed" },
+          { name:"Life Sciences", pctOfSeg:8, color:"#059669" },
+          { name:"BXPE (retail evergreen vehicle)", pctOfSeg:8, color:"#94a3b8" },
+        ],
+        strength:5,
+        evolution:"Blackstone was founded on PE (1985). Added growth equity (BXG, 2020) to capture tech cycle. Tactical Opps = flexible mandate. BXPE (2024) = retail access innovation. PE shrinking as % of AUM as credit/RE grew but absolute dollars still very large.",
+        keyDiff:"Deepest PE track record in the group. Multi-product PE (mega-cap LBO + growth + tactical) covers more of the PE opportunity set than any peer. BXPE is the retail channel innovation. The LBO machine at this scale has real deal sourcing advantages.",
+        isBig:true },
+
+      { firm:"KKR", pct:32, label:"Large-Cap LBO + Core PE + Growth Technology",
+        description:"KKR invented modern LBO (RJR Nabisco, 1989). Today: flagship buyouts, Core PE (longer-hold, lower-leverage quality businesses), growth tech, and an emerging permanent ownership model (Strategic Holdings).",
+        subStrategies:[
+          { name:"Flagship PE (large-cap LBO — Americas/Europe/Asia)", pctOfSeg:53, color:"#ea580c" },
+          { name:"Core PE (10–15yr hold, lower leverage)", pctOfSeg:21, color:"#7c3aed" },
+          { name:"KKR Growth (technology / high-growth)", pctOfSeg:16, color:"#d97706" },
+          { name:"Strategic Holdings (permanent capital positions)", pctOfSeg:6, color:"#0891b2" },
+          { name:"KKR Impact", pctOfSeg:4, color:"#059669" },
+        ],
+        strength:5,
+        evolution:"Original LBO founder. Core PE added ~2017 — visionary product ahead of LP demand. Strategic Holdings emerging as permanent capital model. PE declined as % of total AUM as credit/infra grew but remains 32% and the identity anchor.",
+        keyDiff:"Core PE is the product innovation — lower volatility, longer duration PE that no one else had at scale when KKR launched it. KKR Capstone (operational team) makes their post-deal execution genuinely different from pure financial engineering shops.",
+        isBig:true },
+
+      { firm:"APO", pct:12, label:"Value-Oriented LBO + Hybrid Value (intentionally shrinking)",
+        description:"Apollo was always a different PE firm — value-oriented, buying complex/misunderstood businesses others avoid. Marc Rowan is deliberately de-emphasizing traditional LBO in favor of Hybrid Value ($70B+, growing fast) because it scales better and has shorter carry realization timelines.",
+        subStrategies:[
+          { name:"Traditional LBO (value/complex buyouts)", pctOfSeg:52, color:"#ea580c" },
+          { name:"Hybrid Value (structured equity/mezz)", pctOfSeg:43, color:"#0891b2" },
+          { name:"Distressed equity / opportunistic", pctOfSeg:5, color:"#b91c1c" },
+        ],
+        strength:3,
+        evolution:"Leon Black founded on distressed PE. Marc Rowan (CEO 2021) shifted focus to credit and Hybrid Value. PE: 30%→12% of AUM in 5yr — most dramatic PE decline in the group. Deliberate. Hybrid Value launched as a distinct strategy with its own $70B+ fund — growing faster than legacy PE.",
+        keyDiff:"Hybrid Value is Apollo's invention and has no real peer equivalent at scale. Targets the 'capital structure gap' — companies wanting growth capital without full equity dilution. Shorter realization cycle than LBO + debt-like downside protection = superior fee/carry economics.",
+        isBig:false },
+
+      { firm:"CG", pct:35, label:"Global Buyout + Natural Resources + AlpInvest Secondaries",
+        description:"Carlyle's identity remains most anchored in traditional buyout PE across regions. The crown jewel is AlpInvest ($102B AUM) — world's leading secondaries platform acquired from Dutch pension funds (ABP/PGGM), spanning PE/credit secondaries, FOF, and co-investment.",
+        subStrategies:[
+          { name:"Corporate PE — Americas (large-cap buyout)", pctOfSeg:40, color:"#ea580c" },
+          { name:"AlpInvest (secondaries + FOF + co-invest)", pctOfSeg:30, color:"#94a3b8" },
+          { name:"Corporate PE — Europe / Asia (incl. Japan)", pctOfSeg:17, color:"#d97706" },
+          { name:"Natural Resources PE (NGP partnership)", pctOfSeg:8, color:"#059669" },
+          { name:"Growth equity", pctOfSeg:5, color:"#0891b2" },
+        ],
+        strength:4,
+        evolution:"One of the original PE firms (1987). AlpInvest acquired 2011 from ABP/PGGM — $102B now. European PE leadership changes (2024) are a headwind. Japan PE is a quiet strength ($430B fifth fund raised). Natural Resources PE via NGP is differentiated from pure-LBO peers.",
+        keyDiff:"AlpInvest is genuinely unique in this peer group — no other firm has a $100B+ secondaries platform. Secondaries are counter-cyclical and provide LPs liquidity in stressed markets. Natural Resources PE = energy transition + commodities exposure others lack.",
+        isBig:false },
+    ];
+
+    // ─── REAL ASSETS DATA ────────────────────────────────────────────────────────
+    const RA_EDU = [
+      { term:"Core Infrastructure", color:"#0891b2", def:"Essential services: electricity grids, water, pipelines, toll roads. Regulated/contracted revenues. 50–100yr asset lives. Inflation-linked. Lowest risk/return of infra spectrum.", risk:"Low", yield:"8–12%" },
+      { term:"Value-Add Infra", color:"#2563eb", def:"Infrastructure in transition: data centers, telecom towers, digital fiber. Captures AI/5G/deglobalization growth. Higher risk than core but growth-oriented. Where the current capital boom is concentrated.", risk:"Med", yield:"12–18%" },
+      { term:"Renewable Power", color:"#16a34a", def:"Hydro, wind, solar, storage, nuclear. Long-term PPAs with governments/corporates. BEP/Brookfield has the largest institutional platform. AI data center power demand is a new mega-tailwind.", risk:"Low-Med", yield:"10–15%" },
+      { term:"Opportunistic RE", color:"#7c3aed", def:"Value-add or turnaround properties — buying under-managed or distressed assets and repositioning. Blackstone's BREP is the premier example. Higher risk, higher return, shorter hold.", risk:"High", yield:"18–25%" },
+      { term:"Core+ Real Estate", color:"#9333ea", def:"High-quality stabilized properties with moderate value-add. Predictable cash flows, inflation protection. Institutional LPs use this for stable yield. Blackstone's BPP product.", risk:"Low-Med", yield:"8–12%" },
+      { term:"RE Credit", color:"#6d28d9", def:"Lending against real estate rather than owning equity. Mortgages, bridge loans, CMBS. Less capital-intensive, more liquid. Growing as equity RE valuations compressed post-2022.", risk:"Low-Med", yield:"8–14%" },
+    ];
+
+    const RA_FIRMS = [
+      { firm:"BAM", pct:59, label:"Infra + Renewables + RE — Owner-Operator at Scale",
+        description:"Brookfield's core identity — 125yr owner-operator. Nobody in this peer group comes close. Infrastructure: utilities, transport, data/telecom, midstream. Renewables (BEP): 33,000 MW capacity. Real estate: gateway cities across all property types.",
+        subStrategies:[
+          { name:"Infra: Utilities (electricity/gas networks, 10M+ customers)", pctOfSeg:19, color:"#0891b2" },
+          { name:"Infra: Data & Telecom (towers, data centers, fiber)", pctOfSeg:15, color:"#2563eb" },
+          { name:"Infra: Transport (toll roads, ports, rail)", pctOfSeg:14, color:"#1d4ed8" },
+          { name:"RE: Logistics / Industrial", pctOfSeg:13, color:"#7c3aed" },
+          { name:"RE: Multifamily / Office / Retail (gateway cities)", pctOfSeg:12, color:"#9333ea" },
+          { name:"Renewables: Hydro (~50% of BEP capacity)", pctOfSeg:9, color:"#16a34a" },
+          { name:"Renewables: Wind + Solar + Storage", pctOfSeg:8, color:"#059669" },
+          { name:"Infra: Midstream (natural gas pipelines)", pctOfSeg:7, color:"#0f766e" },
+          { name:"Infra: Infrastructure credit", pctOfSeg:3, color:"#94a3b8" },
+        ],
+        strength:5,
+        evolution:"BIP listed 2008 (crisis-era conviction). BEP listed 2011. $30B record infra fund raised 2024. Data/telecom growing fastest — AI power demand + tower agreements. Real estate under pressure (office legacy exposure) but logistics/industrial offsetting. Renewables accelerating via corporate PPAs (Microsoft 10.5 GW).",
+        keyDiff:"250,000 operating employees. The intelligence loop from owning power grids, towers, toll roads, ports simultaneously creates deal sourcing no competitor replicates. 125yr institutional memory compounds with every cycle. The assets don't leave with the people.",
+        isBig:true },
+
+      { firm:"BX", pct:25, label:"Opportunistic + Core+ + RE Debt (BREP / BPP / BREIT)",
+        description:"Blackstone built the world's largest real estate investment platform. BREP (opportunistic), BPP (perpetual core+), BREIT (non-traded REIT for retail, $58B), BREDS (RE debt). Infrastructure is newer and smaller but growing.",
+        subStrategies:[
+          { name:"BREP (opportunistic real estate — flagship)", pctOfSeg:38, color:"#7c3aed" },
+          { name:"BREIT (non-traded REIT — retail channel)", pctOfSeg:28, color:"#9333ea" },
+          { name:"BPP (perpetual core+ institutional)", pctOfSeg:20, color:"#6d28d9" },
+          { name:"BREDS (real estate debt/credit)", pctOfSeg:10, color:"#7c3aed" },
+          { name:"Infrastructure (newer, growing)", pctOfSeg:4, color:"#0891b2" },
+        ],
+        strength:4,
+        evolution:"Real estate = founding identity. BREIT (2017) was the retail channel innovation — $58B peak AUM. BREIT faced redemption pressure 2022–2023 as rate headwinds hit RE valuations — a stress test on the perpetual vehicle model. Infrastructure building but 10–15yr behind Brookfield operationally.",
+        keyDiff:"BREIT democratized real estate access for retail investors — no peer matched it at scale at launch. Largest opportunistic RE fund platform globally. But RE declining as % of mix as credit/PE grew. Infrastructure catching up but not the core identity.",
+        isBig:false },
+
+      { firm:"KKR", pct:25, label:"Infrastructure (Energy + Digital) + Real Estate",
+        description:"KKR's infrastructure is growing fastest in the group (+18% YoY). Energy infrastructure, digital infrastructure (data centers, fiber), transport. Real estate is a separate platform. Approach: financial-return-oriented rather than operational.",
+        subStrategies:[
+          { name:"Infrastructure: Energy (power, midstream, transition)", pctOfSeg:42, color:"#0891b2" },
+          { name:"Infrastructure: Digital (data centers, fiber, towers)", pctOfSeg:30, color:"#2563eb" },
+          { name:"Real Estate equity (opportunistic)", pctOfSeg:16, color:"#7c3aed" },
+          { name:"Infrastructure: Transport & logistics", pctOfSeg:8, color:"#1d4ed8" },
+          { name:"Real estate credit", pctOfSeg:4, color:"#9333ea" },
+        ],
+        strength:3,
+        evolution:"Infrastructure added 2009, now fastest-growing segment. Real assets 18%→25% in 5yr (+18% YoY most recent). Energy transition is driving deployment. Global Atlantic insurance float partially funding infra investments — creating the BAM-like loop.",
+        keyDiff:"KKR's infrastructure is transactional rather than operational — they buy and improve, less focused on running. But digital infra + energy transition expertise is real. Gap vs. Brookfield is operational depth, not strategic intent.",
+        isBig:false },
+
+      { firm:"APO", pct:6, label:"Minimal — Mostly Credit-Oriented Real Assets",
+        description:"Real assets are intentionally small at Apollo — and where they exist, it's mostly through a credit/structured lens, not equity ownership. The Intel semiconductor fab ($32B) made headlines but is structured as credit/hybrid, not equity infra.",
+        subStrategies:[
+          { name:"Infrastructure credit (not equity)", pctOfSeg:52, color:"#0891b2" },
+          { name:"Real estate debt / structured", pctOfSeg:30, color:"#7c3aed" },
+          { name:"Natural resources (small)", pctOfSeg:10, color:"#059669" },
+          { name:"Real estate equity (minimal)", pctOfSeg:8, color:"#9333ea" },
+        ],
+        strength:2,
+        evolution:"Apollo has never been a real assets firm and has no plans to become one. Real assets are approached as credit opportunities when the risk/return is right. Marc Rowan deliberately concentrates on the credit origination model — operational real asset ownership is not scalable the same way.",
+        keyDiff:"Philosophical choice: Apollo believes credit origination scales better than operational real asset ownership. The Intel fab deal shows they can do large structured transactions, but it's not infra ownership — it's structured lending. Real assets staying small by design.",
+        isBig:false },
+
+      { firm:"CG", pct:0, label:"Embedded in PE — Natural Resources + Infrastructure Funds",
+        description:"Carlyle doesn't have a standalone real assets segment. Infrastructure and natural resources are embedded in Global Private Equity. NGP (Natural Gas Partners, ~40% stake) adds energy/natural resources. Two dedicated infrastructure funds exist but remain small.",
+        subStrategies:[
+          { name:"Natural Resources PE (NGP energy partnership)", pctOfSeg:55, color:"#059669" },
+          { name:"Infrastructure funds (2 dedicated funds)", pctOfSeg:25, color:"#0891b2" },
+          { name:"Power funds (2 funds)", pctOfSeg:12, color:"#16a34a" },
+          { name:"International energy fund", pctOfSeg:8, color:"#0f766e" },
+        ],
+        strength:2,
+        evolution:"Infrastructure/natural resources always embedded in PE. Harvey Schwartz focused on credit and PE scalability, not infrastructure build. The relative underinvestment in standalone infrastructure vs Brookfield/KKR is a strategic gap Carlyle has consciously not filled.",
+        keyDiff:"Natural Resources PE via NGP gives unique energy/commodities exposure. But this is PE (buy/sell), not operational infrastructure ownership. AlpInvest does own some infra fund LP stakes via secondaries. The gap vs. Brookfield in operational real assets is the largest of the group.",
+        isBig:false },
+    ];
+
+    // ─── PERPETUAL CAPITAL DATA ──────────────────────────────────────────────────
+    const PERP_EVOLUTION = [
+      { year:"2019", BAM:28, BX:18, KKR:19, APO:32, CG:14 },
+      { year:"2020", BAM:35, BX:22, KKR:21, APO:42, CG:16 },
+      { year:"2021", BAM:42, BX:27, KKR:31, APO:57, CG:21 },
+      { year:"2022", BAM:58, BX:31, KKR:37, APO:70, CG:27 },
+      { year:"2023", BAM:72, BX:33, KKR:40, APO:75, CG:31 },
+      { year:"2024", BAM:87, BX:34, KKR:42, APO:78, CG:33 },
+    ];
+
+    const PERP_FIRMS = [
+      { firm:"BAM", perpPct:87, perpAmt:"$526B of $603B FBC", growth:"28%→87%",
+        primaryDriver:"vehicle",
+        drivers:[
+          { label:"BIP / BEP / BBU listed vehicles", type:"vehicle", note:"Perpetual listed partnerships — capital never returns. Launched 2008/2011/2016." },
+          { label:"Long-dated LP commitments", type:"both", note:"Infrastructure and renewable power funds are 15–25yr duration by nature — long-dated, not perpetual but close." },
+          { label:"Brookfield Wealth Solutions (building)", type:"vehicle", note:"Insurance float and retail perpetual vehicles being built out. Still early but growing." },
+          { label:"Real assets segment growth", type:"segment", note:"Infrastructure and renewables are inherently long-duration — structural driver of long-dated capital." },
+        ],
+        verdict:"Brookfield's extraordinary 87% is driven by the listed perpetual vehicles (BIP, BEP, BBU) and the long-dated nature of infra/renewable assets. It's primarily a vehicle innovation story, amplified by the segment (real assets naturally match long capital horizons)." },
+
+      { firm:"BX", perpPct:34, perpAmt:"~$432B of $1.27T", growth:"18%→34%",
+        primaryDriver:"vehicle",
+        drivers:[
+          { label:"BREIT (non-traded REIT, retail)", type:"vehicle", note:"Launched 2017 — gave retail investors perpetual RE exposure. Peak $58B. Faced redemption pressure 2022–23." },
+          { label:"BPP (perpetual Core+ institutional)", type:"vehicle", note:"Perpetual institutional real estate product. Separately managed accounts with permanent capital." },
+          { label:"BCRED (BDC — perpetual credit vehicle)", type:"vehicle", note:"BDC structure is evergreen/perpetual. Launched 2021, largest BDC globally." },
+          { label:"BIS / Insurance Solutions", type:"both", note:"Building insurance float which is inherently perpetual. Still early vs Apollo/KKR." },
+        ],
+        verdict:"Blackstone's perpetual growth is almost entirely a vehicle innovation story — BREIT, BPP, BCRED are structural products designed to be evergreen. Segment didn't change; the packaging did. BREIT redemption issues in 2022–23 showed limits of retail perpetual vehicle model under stress." },
+
+      { firm:"KKR", perpPct:42, perpAmt:"$289B of $686B AUM", growth:"19%→42%",
+        primaryDriver:"both",
+        drivers:[
+          { label:"Global Atlantic acquisition (2021)", type:"vehicle", note:"$4.7B acquisition of Global Atlantic = insurance float = $100B+ permanently available. Single biggest perpetual capital step-change." },
+          { label:"K-Series retail vehicles (evergreen)", type:"vehicle", note:"K-PRIME, KBDC, K-INFRA — evergreen retail products launched 2022–24." },
+          { label:"Infrastructure segment growth", type:"segment", note:"Infrastructure assets are naturally long-duration. Growing this segment structurally grows long-dated capital." },
+          { label:"Core PE (longer-hold duration)", type:"both", note:"Core PE 10–15yr holds are not perpetual but dramatically longer than standard 5yr fund. Contributes to long-dated pool." },
+        ],
+        verdict:"KKR's growth is both vehicle (Global Atlantic insurance float was the step-change in 2021) and segment (more infrastructure = more long-dated assets). The most balanced driver mix of the group." },
+
+      { firm:"APO", perpPct:78, perpAmt:"~$655B of $840B AUM", growth:"32%→78%",
+        primaryDriver:"vehicle",
+        drivers:[
+          { label:"Athene merger (Jan 2022)", type:"vehicle", note:"The defining move. Athene has $200B+ in insurance liabilities = permanent, growing capital pool. Most of Apollo's AUM is now insurance-funded." },
+          { label:"IG credit shift matches insurance needs", type:"segment", note:"By pivoting to IG credit, Apollo created assets that perfectly match insurance liability profiles. Segment change enabled the vehicle model." },
+          { label:"Atlas origination platform", type:"both", note:"Continuous origination means capital is always deployed — no return/re-raise cycle. Self-reinforcing perpetual machine." },
+        ],
+        verdict:"Apollo's perpetual capital growth is fundamentally a VEHICLE story — Athene is the engine. But the IG credit segment shift was what made the vehicle model viable (insurance needs safe, yielding assets). Unique: they changed both vehicle AND segment simultaneously, each enabling the other." },
+
+      { firm:"CG", perpPct:33, perpAmt:"$108B of $332B FEAUM", growth:"14%→33%",
+        primaryDriver:"vehicle",
+        drivers:[
+          { label:"Insurance Solutions (building fast)", type:"vehicle", note:"$87B in insurance AUM — deliberately building the Apollo model. Fastest-growing part of Carlyle's platform." },
+          { label:"AlpInvest continuation vehicles", type:"vehicle", note:"Secondary continuation vehicles are increasingly used to hold assets longer. Growing perpetual-like capital." },
+          { label:"Credit shift (longer duration)", type:"segment", note:"Credit assets (especially direct lending, infrastructure credit) are longer duration than PE, contributing to long-dated capital." },
+        ],
+        verdict:"Carlyle's perpetual build is earlier-stage and vehicle-led (insurance solutions, continuation vehicles). The AlpInvest secondaries platform is an unconventional but real source of longer-duration capital. Still well behind Apollo/KKR in execution." },
+    ];
+
+    // ─── WHY CREDIT GREW ─────────────────────────────────────────────────────────
+    const CREDIT_GROWTH_REASONS = [
+      { title:"Fee predictability vs. PE carry", icon:"📊",
+        body:"Management fees on credit AUM are recurring and stable — 1–1.5% on permanent/long-dated capital. PE carry is lumpy: requires exits, depends on market conditions, and has a 5–7yr realization lag. Credit fees compound continuously. For a publicly listed manager wanting smooth EPS growth, credit fees are worth multiples of PE carry in valuation terms." },
+      { title:"Bank retreat = structural supply of assets", icon:"🏦",
+        body:"Basel III/IV regulations force banks to hold more capital against leveraged loans, consumer credit, mortgages. This created a $6T+ pool of assets needing a new home. Private credit managers stepped in as the new 'shadow banking' system. This is not cyclical — it's regulatory-driven and permanent. KKR's ABF bet is the purest expression of this thesis." },
+      { title:"Perpetual vehicles fit credit perfectly", icon:"🔄",
+        body:"BDCs (BCRED, BXSL, KBDC), insurance vehicles, non-traded evergreen funds — all perpetual. Credit strategies match perfectly: you continuously originate new loans as old ones repay, fees compound, capital never leaves. PE funds force capital return after 5–7yr; credit vehicles eliminate the re-raise treadmill." },
+      { title:"Insurance float = structural cost-of-capital moat", icon:"🛡️",
+        body:"This is the deepest structural advantage. See explanation below." },
+      { title:"Wealth channel demand for income", icon:"💰",
+        body:"Post-2022 rate environment: retail investors and family offices want yield-generating alternatives. Private credit offers 8–12% floating rate with downside protection. BDCs, non-traded credit vehicles, and evergreen funds can be sold to wealth management clients at higher fee rates than institutional. The wealth channel is growing faster than institutional for credit." },
+    ];
+
+    const INSURANCE_FIRMS = [
+      { firm:"APO", vehicle:"Athene (merged 2022)", size:"$200B+ insurance AUM", maturity:"Fully integrated — the benchmark", color:"#7c3aed" },
+      { firm:"KKR", vehicle:"Global Atlantic (acquired 2021)", size:"$100B+ insurance AUM", maturity:"Deep integration underway", color:"#1d4ed8" },
+      { firm:"CG",  vehicle:"Carlyle Insurance Solutions (built internally)", size:"$87B AUM, fastest-growing", maturity:"Building — 3–5yr behind APO/KKR", color:"#b91c1c" },
+      { firm:"BX",  vehicle:"BIS — Blackstone Insurance Solutions", size:"Growing, early stage", maturity:"Early — still structuring partnerships", color:"#1e3a5f" },
+      { firm:"BAM", vehicle:"Brookfield Wealth Solutions", size:"Building — smallest of the group", maturity:"Earliest stage of the group", color:"#0d9488" },
+    ];
+
+    // ─── COMPONENTS ──────────────────────────────────────────────────────────────
+    const Tag = ({ children, color="blue", small=false }) => {
+      const m = { blue:{bg:"#dbeafe",t:"#1e40af"}, green:{bg:"#dcfce7",t:"#166534"}, amber:{bg:"#fef3c7",t:"#92400e"}, red:{bg:"#fee2e2",t:"#991b1b"}, teal:{bg:"#ccfbf1",t:"#0f766e"}, purple:{bg:"#ede9fe",t:"#6d28d9"}, slate:{bg:"#f1f5f9",t:"#475569"}, orange:{bg:"#fed7aa",t:"#c2410c"} };
+      const s = m[color]||m.blue;
+      return <span style={{ background:s.bg, color:s.t, fontSize:small?10:11, fontWeight:600, padding:small?"1px 6px":"2px 8px", borderRadius:4, whiteSpace:"nowrap" }}>{children}</span>;
+    };
+
+    const SegBar = ({ segs }) => {
+      const total = Object.values(segs).reduce((a,b)=>a+b,0);
+      return (
+        <div style={{ display:"flex", height:12, borderRadius:4, overflow:"hidden" }}>
+          {Object.entries(segs).map(([k,v])=>(
+            <div key={k} title={`${k}: ${v}%`} style={{ width:`${(v/total)*100}%`, background:SEG_COLORS_MAP[k]||"#cbd5e1" }} />
+          ))}
+        </div>
+      );
+    };
+
+    const StrengthBar = ({ value, color }) => (
+      <div style={{ display:"flex", gap:3 }}>
+        {[1,2,3,4,5].map(i=>(
+          <div key={i} style={{ width:18, height:6, borderRadius:3, background:i<=value?color:"#e2e8f0" }} />
+        ))}
+      </div>
+    );
+
+    const SubStrategyRow = ({ s, segPct }) => {
+      const barWidth = (s.pctOfSeg / 100) * 100;
+      const aumContrib = ((segPct * s.pctOfSeg) / 100).toFixed(1);
+      return (
+        <div style={{ marginBottom:7 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:3 }}>
+            <span style={{ fontSize:11, color:G.text, fontWeight:500 }}>{s.name}</span>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+              <span style={{ fontSize:10, color:G.muted }}>{aumContrib}% of total AUM</span>
+              <span style={{ fontSize:11, fontWeight:700, color:s.color, minWidth:32, textAlign:"right" }}>{s.pctOfSeg}%</span>
+            </div>
+          </div>
+          <div style={{ height:7, background:"#f1f5f9", borderRadius:4, overflow:"hidden" }}>
+            <div style={{ width:`${barWidth}%`, height:"100%", background:s.color, borderRadius:4, transition:"width 0.4s" }} />
+          </div>
+        </div>
+      );
+    };
+
+    const Card = ({ children, style={}, ...rest }) => (
+      <div style={{ background:G.card, borderRadius:10, border:`1px solid ${G.border}`, padding:"16px 18px", ...style }} {...rest}>{children}</div>
+    );
+
+    const SLabel = ({ children }) => (
+      <div style={{ fontSize:10, fontWeight:700, color:G.muted, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>{children}</div>
+    );
+
+
+    // ─── FIRM CARD (shared across Credit/PE/RA tabs) ─────────────────────────────
+    const FirmCard = ({ f, segPct, activeFirm, setActiveFirm, accentBg="#f0f6ff", accentBorder="#2563eb" }) => {
+      const isOpen = activeFirm === f.firm;
+      return (
+        <Card onClick={()=>setActiveFirm(isOpen ? null : f.firm)}
+          style={{ cursor:"pointer", borderLeft:`5px solid ${FC[f.firm]}`, border: isOpen ? `2px solid ${FC[f.firm]}` : `1px solid ${G.border}` }}>
+          <div style={{ display:"grid", gridTemplateColumns:"90px 1fr 160px 80px", gap:14, alignItems:"center" }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color:FC[f.firm] }}>{f.firm}</div>
+              <div style={{ fontSize:20, fontWeight:800 }}>{f.pct}%</div>
+              <div style={{ fontSize:10, color:G.muted }}>of firm AUM</div>
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, marginBottom:5 }}>{f.label}</div>
+              <div style={{ fontSize:11, color:G.muted, lineHeight:1.5 }}>{f.description.slice(0,100)}…</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:G.muted, marginBottom:4 }}>DEPTH</div>
+              <StrengthBar value={f.strength} color={FC[f.firm]} />
+              {f.isBig && <div style={{ marginTop:5 }}><Tag color="teal" small>Industry leader</Tag></div>}
+            </div>
+            <div style={{ textAlign:"right", color:G.muted, fontSize:22 }}>{isOpen?"▲":"▼"}</div>
+          </div>
+
+          {isOpen && (
+            <div style={{ marginTop:16, paddingTop:16, borderTop:`1px solid ${G.border}` }}>
+              <div style={{ fontSize:12, color:G.muted, lineHeight:1.7, marginBottom:14 }}>{f.description}</div>
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:14 }}>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:G.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+                    Sub-strategy breakdown (% of this segment)
+                  </div>
+                  {f.subStrategies.map(s=>(
+                    <SubStrategyRow key={s.name} s={s} segPct={f.pct} />
+                  ))}
+                  <div style={{ fontSize:10, color:G.muted, marginTop:4 }}>
+                    Right column = approx. % of total firm AUM allocated to that sub-strategy
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:G.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+                    5-Year Evolution
+                  </div>
+                  <div style={{ fontSize:12, color:G.muted, lineHeight:1.75 }}>{f.evolution}</div>
+                </div>
+              </div>
+
+              <div style={{ background:accentBg, borderLeft:`3px solid ${FC[f.firm]}`, padding:"10px 14px", borderRadius:"0 6px 6px 0" }}>
+                <div style={{ fontSize:11, fontWeight:700, color:FC[f.firm], marginBottom:4 }}>KEY DIFFERENTIATOR</div>
+                <div style={{ fontSize:12, color:G.muted, lineHeight:1.6 }}>{f.keyDiff}</div>
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    };
+
+    // ─── PERPETUAL CARD ──────────────────────────────────────────────────────────
+    const PerpCard = ({ f, activePerp, setActivePerp }) => {
+      const isOpen = activePerp === f.firm;
+      const driverTypeColor = { vehicle:"#1d4ed8", segment:"#059669", both:"#d97706" };
+      const driverTypeBg   = { vehicle:"#dbeafe", segment:"#dcfce7", both:"#fef3c7" };
+      return (
+        <Card onClick={()=>setActivePerp(isOpen?null:f.firm)}
+          style={{ cursor:"pointer", borderLeft:`5px solid ${FC[f.firm]}`, border: isOpen?`2px solid ${FC[f.firm]}`:`1px solid ${G.border}` }}>
+          <div style={{ display:"grid", gridTemplateColumns:"90px 200px 1fr 80px", gap:14, alignItems:"center" }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color:FC[f.firm] }}>{f.firm}</div>
+              <div style={{ fontSize:22, fontWeight:800 }}>{f.perpPct}%</div>
+              <div style={{ fontSize:10, color:G.muted }}>perpetual / long-dated</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:G.muted, marginBottom:3 }}>5-YEAR JOURNEY</div>
+              <div style={{ fontSize:13, fontWeight:700 }}>{f.growth}</div>
+              <div style={{ marginTop:6 }}>
+                <span style={{ fontSize:10, fontWeight:600, background:driverTypeBg[f.primaryDriver], color:driverTypeColor[f.primaryDriver], padding:"2px 7px", borderRadius:4 }}>
+                  Primary driver: {f.primaryDriver === "both" ? "vehicle + segment" : f.primaryDriver}
+                </span>
+              </div>
+            </div>
+            <div style={{ fontSize:12, color:G.muted }}>{f.perpAmt}</div>
+            <div style={{ textAlign:"right", color:G.muted, fontSize:22 }}>{isOpen?"▲":"▼"}</div>
+          </div>
+
+          {isOpen && (
+            <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${G.border}` }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:14 }}>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:G.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Drivers of perpetual capital growth</div>
+                  {f.drivers.map((d,i)=>(
+                    <div key={i} style={{ marginBottom:9 }}>
+                      <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:3 }}>
+                        <span style={{ fontSize:11, fontWeight:700 }}>{d.label}</span>
+                        <span style={{ fontSize:10, fontWeight:600, background:driverTypeBg[d.type], color:driverTypeColor[d.type], padding:"1px 6px", borderRadius:4 }}>{d.type}</span>
+                      </div>
+                      <div style={{ fontSize:11, color:G.muted, lineHeight:1.5, paddingLeft:8, borderLeft:`2px solid ${G.border}` }}>{d.note}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:G.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Summit Verdict</div>
+                  <div style={{ fontSize:12, color:G.muted, lineHeight:1.75, background:"#f8fafc", padding:"12px 14px", borderRadius:8, border:`1px solid ${G.border}` }}>{f.verdict}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    };
+
+    // ─── MAIN ────────────────────────────────────────────────────────────────────
+    function SegmentDeepDive() {
+      const [tab, setTab] = useState("overview");
+      const [activeFirm, setActiveFirm] = useState(null);
+      const [eduOpen, setEduOpen]       = useState(null);
+      const [activePerp, setActivePerp] = useState(null);
+
+      const tabs = [
+        { id:"overview",  label:"Overview" },
+        { id:"credit",    label:"Credit" },
+        { id:"pe",        label:"Private Equity" },
+        { id:"ra",        label:"Real Assets" },
+        { id:"perpetual", label:"Perpetual Capital" },
+      ];
+
+      const handleTabChange = (id) => { setTab(id); setActiveFirm(null); setEduOpen(null); setActivePerp(null); };
+
+      return (
+        <div style={{ fontFamily:"'Inter', system-ui, sans-serif", background:G.bg, minHeight:"100vh", color:G.text }}>
+
+          {/* HEADER */}
+          <div style={{ background:"#0f1e2e", padding:"18px 32px 0", borderBottom:"3px solid #0d9488" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+              <div>
+                <div style={{ color:"white", fontSize:18, fontWeight:800, marginBottom:5 }}>Alt Asset Managers — Segment Deep Dive</div>
+                <div style={{ display:"flex", gap:6 }}>
+                  {FIRMS.map(f=>(
+                    <span key={f.id} style={{ background:FC[f.id]+"33", color:FC[f.id], fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:4, border:`1px solid ${FC[f.id]}55` }}>{f.id}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ color:"#64748b", fontSize:11, textAlign:"right" }}>Summit Management · April 2026<br/>Segment composition · Sub-strategies · Perpetual capital</div>
+            </div>
+            <div style={{ display:"flex", gap:2 }}>
+              {tabs.map(t=>(
+                <button key={t.id} onClick={()=>handleTabChange(t.id)}
+                  style={{ padding:"7px 18px", border:"none", cursor:"pointer", fontSize:12, fontWeight:700, borderRadius:"6px 6px 0 0",
+                    background: tab===t.id ? G.bg : "transparent",
+                    color: tab===t.id ? G.text : "#94a3b8",
+                  }}>{t.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ padding:"22px 32px", maxWidth:1240, margin:"0 auto" }}>
+
+            {/* ── OVERVIEW ── */}
+            {tab==="overview" && (
+              <div>
+                <SLabel>All Five Firms — Segment Mix at a Glance</SLabel>
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:12 }}>
+                  {Object.entries(SEG_COLORS_MAP).map(([k,c])=>(
+                    <div key={k} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11 }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:c }} />
+                      <span style={{ color:G.muted }}>{k}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:22 }}>
+                  {FIRMS.map(f=>(
+                    <Card key={f.id} style={{ padding:"14px 18px" }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"150px 1fr 180px 200px", gap:14, alignItems:"center" }}>
+                        <div>
+                          <div style={{ fontSize:15, fontWeight:800, color:FC[f.id] }}>{f.id} — {f.name}</div>
+                          <div style={{ fontSize:12, fontWeight:700 }}>{f.aum}</div>
+                        </div>
+                        <div>
+                          <SegBar segs={SEG_MIX[f.id]} />
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:"3px 10px", marginTop:5 }}>
+                            {Object.entries(SEG_MIX[f.id]).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                              <span key={k} style={{ fontSize:10, color:G.muted }}>
+                                <span style={{ color:SEG_COLORS_MAP[k], fontWeight:700 }}>■</span> {k} {v}%
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div><div style={{ fontSize:11, fontWeight:600 }}>{f.identity}</div></div>
+                        <div><div style={{ fontSize:11, fontWeight:600 }}>{f.ceo}</div><div style={{ fontSize:10, color:G.muted }}>{f.ceoNote}</div></div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                <Card style={{ borderLeft:"4px solid #0d9488", background:"#f0fdfa" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#0f766e", marginBottom:8 }}>What to look for across tabs</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, fontSize:12, color:G.muted, lineHeight:1.7 }}>
+                    <div><strong style={{ color:G.text }}>Credit ≠ credit</strong><br/>Apollo's 82% credit is mostly investment-grade via insurance. KKR's credit is moving into asset-based finance. BAM's is distressed/HY. Same word, three different business models.</div>
+                    <div><strong style={{ color:G.text }}>PE is fragmenting</strong><br/>KKR/BX = traditional mega-cap LBO. Apollo de-emphasizing LBO for Hybrid Value. BAM = operational transformation, not financial engineering. Carlyle = global buyout + secondaries (AlpInvest).</div>
+                    <div><strong style={{ color:G.text }}>Real assets = Brookfield's exclusive ground</strong><br/>Infrastructure + renewables at 125yr operational depth. KKR building fast but 10–15yr behind. Apollo barely participates. The least commoditized, hardest to replicate segment.</div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* ── CREDIT ── */}
+            {tab==="credit" && (
+              <div>
+                <div style={{ marginBottom:20 }}>
+                  <SLabel>Credit Glossary — Click to expand</SLabel>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:8 }}>
+                    {CREDIT_EDU.map((e,i)=>(
+                      <div key={e.term} onClick={()=>setEduOpen(eduOpen===i?null:i)}
+                        style={{ background:"white", border:`1px solid ${eduOpen===i?e.color:G.border}`, borderTop:`3px solid ${e.color}`, borderRadius:8, padding:"10px 12px", cursor:"pointer" }}>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:eduOpen===i?8:0 }}>{e.term}</div>
+                        {eduOpen===i && (
+                          <div>
+                            <div style={{ fontSize:11, color:G.muted, lineHeight:1.6, marginBottom:6 }}>{e.def}</div>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <Tag color="slate" small>Risk: {e.risk}</Tag>
+                              <Tag color="green" small>Yield: {e.yield}</Tag>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <SLabel>How Each Firm Plays Credit — Click to drill in</SLabel>
+                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:28 }}>
+                  {CREDIT_FIRMS.map(f=>(
+                    <FirmCard key={f.firm} f={f} segPct={f.pct} activeFirm={activeFirm} setActiveFirm={setActiveFirm} accentBg="#f0f6ff" />
+                  ))}
+                </div>
+
+                {/* WHY CREDIT GREW */}
+                <div style={{ borderTop:`2px solid ${G.border}`, paddingTop:22 }}>
+                  <SLabel>Why All Five Firms Have Been Growing Credit as % of AUM</SLabel>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, marginBottom:18 }}>
+                    {CREDIT_GROWTH_REASONS.slice(0,3).map(r=>(
+                      <Card key={r.title} style={{ borderTop:"3px solid #2563eb" }}>
+                        <div style={{ fontSize:18, marginBottom:6 }}>{r.icon}</div>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:6 }}>{r.title}</div>
+                        <div style={{ fontSize:11, color:G.muted, lineHeight:1.65 }}>{r.body}</div>
+                      </Card>
+                    ))}
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+                    {CREDIT_GROWTH_REASONS.slice(3).map(r=>(
+                      <Card key={r.title} style={{ borderTop:"3px solid #2563eb" }}>
+                        <div style={{ fontSize:18, marginBottom:6 }}>{r.icon}</div>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:6 }}>{r.title}</div>
+                        <div style={{ fontSize:11, color:G.muted, lineHeight:1.65 }}>{r.body}</div>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Insurance deep-dive */}
+                  <Card style={{ background:"#0f1e2e", border:"none", marginBottom:0 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1.4fr", gap:24 }}>
+                      <div>
+                        <div style={{ color:"#5eead4", fontSize:13, fontWeight:800, marginBottom:10 }}>🛡️ Why insurance works better than direct credit fundraising</div>
+                        <div style={{ color:"#94a3b8", fontSize:12, lineHeight:1.8 }}>
+                          <p style={{ margin:"0 0 10px" }}><strong style={{ color:"white" }}>Traditional credit model:</strong> Raise a $10B credit fund → charge 1.5% fee → deploy over 3yr → capital repays over 5–7yr → go raise another fund. Repeat forever. Always dependent on LP sentiment, market conditions, and re-raise cycles.</p>
+                          <p style={{ margin:"0 0 10px" }}><strong style={{ color:"white" }}>Insurance model:</strong> Own an insurer (life insurance + annuities) → collect premiums from millions of policyholders → you have a permanent, growing pool of capital at near-zero cost → invest it into your own credit products → earn the spread between what assets yield and what you owe policyholders → that spread = profit, compounding every year.</p>
+                          <p style={{ margin:0 }}><strong style={{ color:"white" }}>Why it's structurally superior:</strong> (1) Capital never returns — it grows as new premiums come in. (2) You are your own LP — no fundraising treadmill. (3) Cost of capital is structurally lower than market rates. (4) You can do IG credit that earns 5–7% because your liabilities cost 2–3% — the spread works. Traditional credit managers can't do IG at scale because their cost of capital is too high.</p>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color:"#5eead4", fontSize:12, fontWeight:700, marginBottom:10, textTransform:"uppercase", letterSpacing:"0.06em" }}>Who has insurance exposure — maturity ranking</div>
+                        {INSURANCE_FIRMS.map((f,i)=>(
+                          <div key={f.firm} style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom:12, padding:"10px 12px", background:"#162840", borderRadius:8, borderLeft:`3px solid ${f.color}` }}>
+                            <div style={{ fontSize:15, fontWeight:800, color:f.color, minWidth:40 }}>{f.firm}</div>
+                            <div>
+                              <div style={{ color:"white", fontSize:11, fontWeight:700 }}>{f.vehicle}</div>
+                              <div style={{ color:"#64748b", fontSize:11 }}>{f.size}</div>
+                              <div style={{ color:"#94a3b8", fontSize:10, marginTop:2 }}>{f.maturity}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ── PE ── */}
+            {tab==="pe" && (
+              <div>
+                <div style={{ marginBottom:20 }}>
+                  <SLabel>PE Glossary — Click to expand</SLabel>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8 }}>
+                    {PE_EDU.map((e,i)=>(
+                      <div key={e.term} onClick={()=>setEduOpen(eduOpen===i?null:i)}
+                        style={{ background:"white", border:`1px solid ${eduOpen===i?e.color:G.border}`, borderTop:`3px solid ${e.color}`, borderRadius:8, padding:"10px 12px", cursor:"pointer" }}>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:eduOpen===i?8:0 }}>{e.term}</div>
+                        {eduOpen===i && (
+                          <div>
+                            <div style={{ fontSize:11, color:G.muted, lineHeight:1.6, marginBottom:6 }}>{e.def}</div>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <Tag color="slate" small>Risk: {e.risk}</Tag>
+                              <Tag color="orange" small>Target: {e.yield}</Tag>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <SLabel>How Each Firm Plays PE — Click to drill in</SLabel>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {PE_FIRMS.map(f=>(
+                    <FirmCard key={f.firm} f={f} segPct={f.pct} activeFirm={activeFirm} setActiveFirm={setActiveFirm} accentBg="#fff7ed" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── REAL ASSETS ── */}
+            {tab==="ra" && (
+              <div>
+                <div style={{ marginBottom:20 }}>
+                  <SLabel>Real Assets Glossary — Click to expand</SLabel>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8 }}>
+                    {RA_EDU.map((e,i)=>(
+                      <div key={e.term} onClick={()=>setEduOpen(eduOpen===i?null:i)}
+                        style={{ background:"white", border:`1px solid ${eduOpen===i?e.color:G.border}`, borderTop:`3px solid ${e.color}`, borderRadius:8, padding:"10px 12px", cursor:"pointer" }}>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:eduOpen===i?8:0 }}>{e.term}</div>
+                        {eduOpen===i && (
+                          <div>
+                            <div style={{ fontSize:11, color:G.muted, lineHeight:1.6, marginBottom:6 }}>{e.def}</div>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <Tag color="slate" small>Risk: {e.risk}</Tag>
+                              <Tag color="green" small>Target: {e.yield}</Tag>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <SLabel>How Each Firm Plays Real Assets — Click to drill in</SLabel>
+                <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:28 }}>
+                  {RA_FIRMS.map(f=>(
+                    <FirmCard key={f.firm} f={f} segPct={f.pct} activeFirm={activeFirm} setActiveFirm={setActiveFirm} accentBg="#f0fdf4" />
+                  ))}
+                </div>
+
+                {/* ── HOW THEY EARN IN REAL ASSETS ── */}
+                <div style={{ borderTop:`2px solid ${G.border}`, paddingTop:22 }}>
+                  <SLabel>How Asset Managers Earn in Real Assets — The Revenue Model</SLabel>
+
+                  {/* Three revenue streams */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:14 }}>
+                    {[
+                      { icon:"💼", title:"Management Fee", color:"#059669", bg:"#f0fdf4",
+                        rate:"1.0–1.25% / yr",
+                        body:"Charged annually on committed or invested capital. The stable, compounding base income. Lower rate than PE (1.5–2%) but the hold period is so much longer that total fee revenue per dollar of capital deployed is often higher. For perpetual vehicles (BIP, BEP, BREIT) this fee is theoretically infinite — it never stops as long as the vehicle exists.",
+                        detail:"Example: A $10B infra fund at 1.1% held for 20yr = $2.2B in management fees. A $10B PE fund at 1.75% held for 7yr = $1.2B. The lower real assets rate wins on total lifetime revenue." },
+                      { icon:"🏆", title:"Carried Interest (Performance Fee)", color:"#d97706", bg:"#fefce8",
+                        rate:"12.5–20% above 8% hurdle",
+                        body:"The manager's share of profits above a minimum return threshold (hurdle rate, typically 8% IRR). In real assets, carry is the slowest-realizing revenue of the three. Infrastructure and renewable assets are held 15–25 years before sale, so carry accumulates for decades before you see it. But when a $5B infrastructure asset sold after 20 years at 12% IRR returns $19B, the carry on $14B of gain is transformational.",
+                        detail:"The long hold is a double-edged sword: carry takes longest to realize, but the compounding means the gain pool is much larger than in PE. Investors who understand this are patient; others underestimate it." },
+                      { icon:"⚙️", title:"Transaction + Monitoring + Vehicle Fees", color:"#0891b2", bg:"#f0f9ff",
+                        rate:"0.5–1% on deal size (one-time)",
+                        body:"Three additional fee layers: (1) Transaction fees — charged to the portfolio company at deal close for structuring and advisory, typically 0.5–1% of deal value. (2) Monitoring fees — annual fees charged to portfolio companies for ongoing management services (often shared/rebated to LPs per fund agreement). (3) Vehicle-specific fees — BAM uniquely earns Incentive Distribution Rights (IDRs) from BIP and BEP: a growing % of cash distributions as the vehicle hits return thresholds. This is separate from fund carry and grows as the vehicle grows.",
+                        detail:"BAM's IDR model from listed vehicles is structurally different from standard fund carry — it is a perpetual, growing income stream tied to the vehicle's distribution growth, not a one-time exit event." },
+                    ].map(r=>(
+                      <div key={r.title} style={{ background:r.bg, border:`1px solid ${G.border}`, borderTop:`3px solid ${r.color}`, borderRadius:10, padding:"16px 16px" }}>
+                        <div style={{ fontSize:20, marginBottom:6 }}>{r.icon}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                          <div style={{ fontSize:13, fontWeight:700 }}>{r.title}</div>
+                          <span style={{ fontSize:11, fontWeight:700, color:r.color, background:"white", padding:"2px 8px", borderRadius:4, border:`1px solid ${r.color}30` }}>{r.rate}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:G.muted, lineHeight:1.65, marginBottom:10 }}>{r.body}</div>
+                        <div style={{ fontSize:10, color:r.color, fontWeight:600, background:"white", padding:"7px 10px", borderRadius:6, lineHeight:1.5 }}>→ {r.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Comparison table */}
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:G.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>Fee Economics Compared — Real Assets vs PE vs Credit</div>
+                    <Card style={{ padding:0, overflow:"hidden" }}>
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+                        <thead>
+                          <tr style={{ background:"#f8fafc" }}>
+                            {["Segment","Mgmt Fee","Carry / Perf Fee","Avg Hold Period","Fee Revenue Visibility","Carry Speed"].map(h=>(
+                              <th key={h} style={{ padding:"10px 14px", textAlign:"left", fontWeight:700, color:G.muted, borderBottom:`1px solid ${G.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { seg:"Infrastructure", mgmt:"1.0–1.25%", carry:"12.5–15% above 8%", hold:"15–25yr", vis:"🟢 Very High", speed:"🔴 Very Slow", bg:"#f0fdf4" },
+                            { seg:"Renewable Power", mgmt:"1.0–1.25%", carry:"12.5–15% above 8%", hold:"15–25yr", vis:"🟢 Very High", speed:"🔴 Very Slow", bg:"#f0fdf4" },
+                            { seg:"Real Estate (Oppty)", mgmt:"1.25–1.5%", carry:"20% above 8%", hold:"5–7yr", vis:"🟡 Medium", speed:"🟡 Medium", bg:"white" },
+                            { seg:"Real Estate Core+", mgmt:"1.0–1.25%", carry:"10–12.5% above 8%", hold:"Perpetual", vis:"🟢 Very High", speed:"🔴 Very Slow", bg:"#f0fdf4" },
+                            { seg:"Private Equity", mgmt:"1.5–2.0%", carry:"20% above 8%", hold:"5–7yr", vis:"🟡 Medium", speed:"🟡 Medium", bg:"#fff7ed" },
+                            { seg:"Credit (Direct Lending)", mgmt:"1.0–1.5%", carry:"10–15%", hold:"3–5yr / perpetual", vis:"🟢 High", speed:"🟢 Fast", bg:"#eff6ff" },
+                          ].map((row,i)=>(
+                            <tr key={row.seg} style={{ background:row.bg, borderBottom:`1px solid ${G.border}` }}>
+                              <td style={{ padding:"9px 14px", fontWeight:600 }}>{row.seg}</td>
+                              <td style={{ padding:"9px 14px", color:G.muted }}>{row.mgmt}</td>
+                              <td style={{ padding:"9px 14px", color:G.muted }}>{row.carry}</td>
+                              <td style={{ padding:"9px 14px", color:G.muted }}>{row.hold}</td>
+                              <td style={{ padding:"9px 14px" }}>{row.vis}</td>
+                              <td style={{ padding:"9px 14px" }}>{row.speed}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </Card>
+                  </div>
+
+                  {/* Dark callout — the dual-role distinction */}
+                  <Card style={{ background:"#0f1e2e", border:"none" }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24 }}>
+                      <div>
+                        <div style={{ color:"#5eead4", fontSize:13, fontWeight:800, marginBottom:10 }}>🔑 The Critical Distinction: Asset Manager vs Asset Owner</div>
+                        <div style={{ color:"#94a3b8", fontSize:12, lineHeight:1.8 }}>
+                          <p style={{ margin:"0 0 10px" }}><strong style={{ color:"white" }}>As an asset MANAGER (BAM, BX, KKR, etc.):</strong> You earn management fees + carry on the third-party LP capital you manage. The actual operating income from the assets — the toll revenues, the power revenues, the rental income — flows to the fund (i.e., the LPs). You earn a fee on top of managing it.</p>
+                          <p style={{ margin:0 }}><strong style={{ color:"white" }}>As an asset OWNER (Brookfield Corporation / BN):</strong> In addition to earning fees as BAM, BN also owns a 25–35% GP/co-investment stake in BIP, BEP, and BBU. So BN earns BOTH the management fee (via BAM) AND a share of the actual operating income from owning the assets. This dual role is what makes the Brookfield structure uniquely powerful — and it's specific to BN, not a feature of the pure-play asset manager BAM.</p>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color:"#5eead4", fontSize:13, fontWeight:800, marginBottom:10 }}>⏱️ Why Patience Matters in Real Assets Carry</div>
+                        <div style={{ color:"#94a3b8", fontSize:12, lineHeight:1.8 }}>
+                          <p style={{ margin:"0 0 10px" }}>The slow carry realization in infrastructure and renewables is frequently misunderstood as a weakness. It is actually a hidden strength. Here is why:</p>
+                          <p style={{ margin:"0 0 10px" }}><strong style={{ color:"white" }}>Compounding time horizon:</strong> An asset bought at $3B growing at 11% for 20yr is worth $22B at exit. The carry pool on $19B of gain at 15% = $2.85B from one deal. A PE fund holding a company for 6yr at 25% IRR on a $3B deal generates ~$5B exit and $1B carry on $2B gain. The math favors patience at scale.</p>
+                          <p style={{ margin:0 }}><strong style={{ color:"white" }}>Inflation linkage:</strong> Real asset revenues grow with inflation (toll roads, utilities, PPAs often have CPI escalators). So the longer you hold, the larger the absolute asset value. Carry compounds with inflation — something PE and credit do not have.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ── PERPETUAL CAPITAL ── */}
+            {tab==="perpetual" && (
+              <div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1.1fr", gap:20, marginBottom:24 }}>
+                  <div>
+                    <SLabel>Perpetual / Long-Dated Capital as % of AUM — 2019 to 2024</SLabel>
+                    <Card style={{ padding:"16px 14px 12px" }}>
+                      <SvgLineChart data={PERP_EVOLUTION} colors={FC} />
+                    </Card>
+                  </div>
+                  <div>
+                    <SLabel>Current Perpetual Capital — Snapshot</SLabel>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {PERP_FIRMS.map(f=>(
+                        <Card key={f.firm} style={{ padding:"12px 16px" }}>
+                          <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px", gap:12, alignItems:"center" }}>
+                            <div style={{ fontSize:14, fontWeight:800, color:FC[f.firm] }}>{f.firm}</div>
+                            <div>
+                              <div style={{ height:10, background:"#f1f5f9", borderRadius:5, overflow:"hidden", marginBottom:4 }}>
+                                <div style={{ width:`${f.perpPct}%`, height:"100%", background:FC[f.firm], borderRadius:5 }} />
+                              </div>
+                              <div style={{ fontSize:10, color:G.muted }}>{f.perpAmt}</div>
+                            </div>
+                            <div style={{ textAlign:"right" }}>
+                              <div style={{ fontSize:18, fontWeight:800, color:FC[f.firm] }}>{f.perpPct}%</div>
+                              <div style={{ fontSize:10, color:G.muted }}>{f.growth}</div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom:14 }}>
+                  <SLabel>What drove the growth — vehicle innovation vs segment shift? Click each firm</SLabel>
+                  <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                    {[{ type:"vehicle", label:"Vehicle / Product innovation", c:"#1d4ed8", bg:"#dbeafe" },
+                      { type:"segment", label:"Segment mix shift", c:"#059669", bg:"#dcfce7" },
+                      { type:"both", label:"Both", c:"#d97706", bg:"#fef3c7" }].map(d=>(
+                      <span key={d.type} style={{ fontSize:11, fontWeight:600, background:d.bg, color:d.c, padding:"3px 10px", borderRadius:4 }}>● {d.label}</span>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    {PERP_FIRMS.map(f=>(
+                      <PerpCard key={f.firm} f={f} activePerp={activePerp} setActivePerp={setActivePerp} />
+                    ))}
+                  </div>
+                </div>
+
+                <Card style={{ background:"#0f1e2e", border:"none" }}>
+                  <div style={{ color:"#5eead4", fontSize:13, fontWeight:800, marginBottom:10 }}>The Big Picture: Why Perpetual Capital Is the New Competitive Moat</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:20, fontSize:12, color:"#94a3b8", lineHeight:1.75 }}>
+                    <div><strong style={{ color:"white" }}>For the manager</strong><br/>Perpetual capital = fees that compound without re-raise cycles. No "fundraising treadmill" every 3–5yr. Revenue visibility improves dramatically → higher valuation multiples for the listed manager entity itself. This is why BAM/BX/KKR trade at premium multiples to traditional PE firms.</div>
+                    <div><strong style={{ color:"white" }}>For the LP</strong><br/>Perpetual vehicles (BDCs, non-traded REITs, insurance products) give retail/HNW investors access to alternative assets without the complexity of closed-end fund commitments. This opens up a massive new investor base — the wealth management channel — which is less rate-sensitive and more diversification-seeking than institutional LPs.</div>
+                    <div><strong style={{ color:"white" }}>The insurance vs. retail vehicle distinction</strong><br/>Insurance float (Apollo/KKR) is the structurally superior form of perpetual capital — lower cost, self-growing, driven by demographic tailwinds. Retail perpetual vehicles (BREIT/BCRED) are distribution innovations — they work until markets stress (BREIT redemptions 2022 showed the limit). Insurance float has no redemption risk.</div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            <div style={{ borderTop:`1px solid ${G.border}`, marginTop:20, paddingTop:12, display:"flex", justifyContent:"space-between", color:G.muted, fontSize:11 }}>
+              <span>Summit Management · BAM · BX · KKR · APO · CG · April 2026</span>
+              <span>Sub-strategies · Segment composition · Perpetual capital · Credit growth drivers</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<SegmentDeepDive />);
+  </script>
+</body>
+</html>
