@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brookfield Asset Management — Business Model Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  --bg-page:#f0f4f8; --bg-header:#ffffff; --bg-tabs:#f8fafc; --bg-card:#ffffff;
+  --bg-inner:#f8fafc; --bg-deep:#eef2f7; --bg-btn-inactive:#eef2f7;
+  --border:#e2e8f0; --border-mid:#cbd5e1;
+  --text-1:#0f172a; --text-2:#334155; --text-3:#64748b; --text-4:#94a3b8;
+  --accent:#1e40af; --accent-faint:#dbeafe;
+  --shadow:0 1px 4px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);
+  background:var(--bg-page); color:var(--text-1); transition:background 0.25s,color 0.25s;
+}
+body.dark {
+  --bg-page:#0f172a; --bg-header:#060d1a; --bg-tabs:#0a1628; --bg-card:#111827;
+  --bg-inner:#0d1117; --bg-deep:#060c16; --bg-btn-inactive:#1e293b;
+  --border:#1f2937; --border-mid:#334155;
+  --text-1:#f1f5f9; --text-2:#e2e8f0; --text-3:#94a3b8; --text-4:#475569;
+  --accent:#3b82f6; --accent-faint:#1e3a5c;
+  --shadow:none; --shadow-sm:none;
+}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg-page)}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px}
+.fade-in{animation:fadeIn 0.35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;box-shadow:var(--shadow);transition:background 0.25s,border-color 0.25s}
+.card-inner{background:var(--bg-inner);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.tag-pro{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+.tag-con{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+body.dark .tag-pro{background:#14532d;color:#86efac;border-color:#166534}
+body.dark .tag-con{background:#450a0a;color:#fca5a5;border-color:#7f1d1d}
+.toggle-btn{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;border:1px solid var(--border-mid);background:var(--bg-inner);color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.toggle-btn:hover{background:var(--bg-deep);color:var(--text-2)}
+.stat-pill{display:inline-flex;flex-direction:column;gap:1px;padding:8px 12px;border-radius:8px;background:var(--bg-inner);border:1px solid var(--border)}
+.sec-badge{display:inline-block;background:var(--accent-faint);color:var(--accent);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:3px 10px;border-radius:4px;margin-bottom:10px;border:1px solid var(--border)}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+/* ================================================================
+   DATA
+   ================================================================ */
+
+const PROS_CONS = [
+  {id:1,type:"pro",title:"Economies of Scale",icon:"📈",
+   headline:"Margins expand as AUM grows — fixed costs spread over more capital",
+   detail:"Compliance, technology, and middle-office infrastructure cost roughly the same whether you manage $100B or $1T. As BAM’s fee-bearing capital grew from ~$280B (2019) to $603B (Q4 2025), fee revenues grew faster than costs, expanding FRE margins from ~48% to ~58%. Each incremental dollar of AUM flows through at ~70%+ incremental margin."},
+  {id:2,type:"pro",title:"Brand & First-Call Status",icon:"📞",
+   headline:"Sovereigns and governments call BAM first — only BAM can absorb their capital",
+   detail:"A sovereign wealth fund deploying $3B needs a counterparty that can actually receive it. At $1.18T AUM, BAM sits on the very short list of managers capable of deploying multi-billion-dollar tickets into single transactions. GIC, ADIA, Mubadala, CDPQ and others have become recurring LP partners precisely because the relationship is operationally simpler at scale."},
+  {id:3,type:"pro",title:"Proprietary Deal Flow",icon:"🔍",
+   headline:"300+ portfolio companies generate intelligence no outsider can replicate",
+   detail:"BAM’s operating companies across infrastructure, renewables, real estate and PE provide real-time market intelligence on asset pricing, regulatory environments, and counterparty quality. When a regulated utility comes to market in Brazil or Australia, BAM already has operating relationships in those jurisdictions — lowering diligence cost and increasing conviction."},
+  {id:4,type:"pro",title:"Counter-Cyclical Fundraising",icon:"🏦",
+   headline:"Large managers raise capital in dislocations — when smaller managers are frozen",
+   detail:"2008-2009 was BAM’s most important expansion period. When credit markets seized and competitors retrenched, BAM’s balance sheet (via BN) and institutional LP relationships allowed it to deploy aggressively. The 2020 COVID dislocation followed the same pattern. Scale gives you the optionality to be greedy when others are fearful."},
+  {id:5,type:"pro",title:"Talent & Operating Expertise",icon:"🧠",
+   headline:"Can hire world-class operators across every sector and geography",
+   detail:"BAM employs thousands of operational specialists — not just financial engineers. Running the world’s largest private renewable power platform (BEP) or the world’s largest private infrastructure portfolio (BIP) requires deep sector knowledge. This expertise compounds: each new deal benefits from institutional memory built over decades in the same asset classes."},
+  {id:6,type:"pro",title:"Capital Recycling Engine",icon:"🔄",
+   headline:"Sell assets between funds, crystallize carry, and redeploy without market dependency",
+   detail:"A large platform can sell mature assets from Fund IV to Fund VII, allowing both funds to recognize gains and redeploy capital without needing public market exits. BAM executes this routinely — creating internal liquidity and pricing visibility that standalone managers cannot achieve."},
+  {id:7,type:"con",title:"Deployment Pressure",icon:"⚠️",
+   headline:"Larger funds require larger deals — the investable universe shrinks",
+   detail:"A $20B infrastructure fund cannot fill its portfolio with $100M transactions. As BAM has scaled each flagship fund series to $25B+, it has necessarily moved up the deal size spectrum. BAM must now compete for trophy assets with sovereign funds directly, where pricing is often full."},
+  {id:8,type:"con",title:"Return Compression Risk",icon:"📉",
+   headline:"Academic literature documents an inverse relationship between fund size and IRR",
+   detail:"Funds above ~$10B AUM tend to generate lower gross IRRs than smaller, more nimble vehicles. BAM’s answer is to rely more on fee-related earnings (stable, predictable) rather than carried interest (episodic, market-dependent). But LPs allocating to BAM mega-funds should price in some return compression versus smaller managers."},
+  {id:9,type:"con",title:"Complexity & Governance",icon:"🕸",
+   headline:"60+ strategies across 5 continents introduces coordination costs and misalignment risk",
+   detail:"Managing Infrastructure Fund VI in Seoul, a European credit facility in London, and a renewable transition fund in North America simultaneously creates organizational complexity. Strategy proliferation — BAM targets 60 active strategies in 2026 — increases the risk that individual funds do not receive sufficient senior attention."},
+  {id:10,type:"con",title:"Regulatory & Political Scrutiny",icon:"⚖️",
+   headline:"Large private capital ownership of infrastructure draws legislative attention",
+   detail:"Governments in the US, EU and UK are increasingly scrutinizing private ownership of utilities, ports, airports and housing. SIFI designation risk, mandatory reporting, and antitrust review for large acquisitions add friction and cost. The political narrative around private equity disproportionately targets the largest managers."},
+  {id:11,type:"con",title:"Fee Compression Pressure",icon:"💸",
+   headline:"Large LPs have negotiating power — 2/20 is history for mega-funds",
+   detail:"The largest sovereign and pension fund LPs have successfully pushed management fees toward 1% or below for flagship vehicles. BAM’s blended fee is ~0.8% on FBC due to credit segment volume. The secular trend in fee compression is real, even if BAM’s relationship stickiness partially mitigates it."},
+  {id:12,type:"con",title:"Key Person & Culture Risk",icon:"👤",
+   headline:"Culture and judgment built over decades are hard to institutionalize",
+   detail:"Bruce Flatt’s 20+ year tenure shaped BAM’s discipline around downside protection, long-term orientation, and operational improvement over financial engineering. The Connor Teskey succession announced in Q4 2025 appears well-managed, but culture transfer across generations of leadership is never guaranteed."},
+];
+
+const SCALE_DATA = [
+  {year:"2020",fee_rev:1.8,fre:0.87,margin:48},
+  {year:"2021",fee_rev:2.2,fre:1.08,margin:49},
+  {year:"2022",fee_rev:2.8,fre:1.46,margin:52},
+  {year:"2023",fee_rev:3.3,fre:1.78,margin:54},
+  {year:"2024",fee_rev:3.9,fre:2.20,margin:56},
+  {year:"2025E",fee_rev:4.5,fre:2.60,margin:58},
+];
+
+const WHO_CALLS = [
+  {category:"Sovereign Wealth Funds",icon:"🏛️",examples:"GIC, ADIA, Mubadala, CDPQ, CPPIB, Korea Investment Corp",why:"Need $1B-$5B+ tickets deployed in stable, yield-generating real assets. BAM can absorb capital at scale that virtually no other private manager can match.",ticket:"$1B-$5B+",frequency:"Recurring LP / co-invest"},
+  {category:"Governments & Multilaterals",icon:"🌐",examples:"France (energy transition JV), Sweden infrastructure, UK National Infrastructure Bank",why:"National energy transition and infrastructure programs require experienced operators who understand regulatory and political complexity across jurisdictions.",ticket:"$500M-$10B",frequency:"Program-level partnerships"},
+  {category:"Corporate Strategics",icon:"🏢",examples:"Google (AI data center JV, 2024), Barclays credit partnership, utility JVs",why:"Capital-heavy transformations — AI infrastructure, energy transition, telecom — require financial partners with operational expertise. BAM brings both capital and operating capability.",ticket:"$1B-$50B JV",frequency:"Strategic one-offs"},
+  {category:"Insurance Companies",icon:"🛡️",examples:"Angel Oak (2025 acquisition), Oaktree insurance channels, third-party insurers",why:"Need investment-grade, structured yield for liability matching. BAM manages $100B+ in insurance-grade assets and is building a dedicated insurance solutions business.",ticket:"$500M-$5B",frequency:"Ongoing AUM growth"},
+  {category:"Pension Funds",icon:"📊",examples:"OTPP, Ontario Municipal, CalPERS, European pension systems",why:"Long-dated liabilities (30yr+) align perfectly with infrastructure and renewable asset life. BAM’s track record gives pension boards the institutional cover they need.",ticket:"$200M-$2B",frequency:"Fund-by-fund commitment"},
+  {category:"Wealth / Retail Channel",icon:"👤",examples:"BEPIF, BCRED, Oaktree evergreen, private wealth platforms globally",why:"New and rapidly growing channel. The $250T global retail wealth market is seeking alternatives access. BAM’s perpetual capital vehicles offer accessible entry points.",ticket:"$25K-$50M",frequency:"Continuous open-ended"},
+];
+
+const RISKS = [
+  {title:"Interest Rate Sensitivity",level:"Medium",lcolor:"#d97706",desc:"Rising rates increase the cost of capital for leveraged buyouts and infrastructure deals, compress asset valuations, and reduce LP appetite for alternatives vs. fixed income.",context:"Industry-wide. All asset managers face this. BAM partially mitigates via long-dated fixed-rate financing at the asset level and inflation-linked revenue contracts."},
+  {title:"Real Estate Cycle Exposure",level:"Medium-High",lcolor:"#dc2626",desc:"BAM’s $273B real estate segment includes significant office exposure. Office vacancies in major markets remain elevated post-COVID, pressuring valuations and deal activity.",context:"Structural, not cyclical in office. BAM has been active in repositioning and reducing office concentration. However, real estate is 23% of total AUM — a meaningful headwind if the cycle extends."},
+  {title:"Credit Cycle / Distressed Risk",level:"Low-Medium",lcolor:"#16a34a",desc:"Oaktree and BAM’s credit businesses thrive in credit stress — but the ~$363B credit segment includes investment-grade and structured credit that would face defaults in a deep recession.",context:"BAM’s credit business was built for cycles. Oaktree specifically raises distressed funds that perform best in downturns. The blend of strategies is deliberately counter-cyclical."},
+  {title:"Fundraising Slowdown",level:"Low",lcolor:"#16a34a",desc:"LP allocations to alternatives are near all-time highs. Any risk-off environment could slow inflows.",context:"Partially mitigated by perpetual capital structure — 87% of FBC does not require continuous re-up. However, growth to $2T+ AUM by 2030 requires sustained strong fundraising."},
+];
+
+/* ---- EXPANDED TIMELINE ---- */
+const TIMELINE = [
+  {year:"1899",event:"Sao Paulo Tramway, Light and Power",detail:"BAM’s oldest ancestor builds and operates trams, gas lighting, electrical generation, and telephone services across Sao Paulo. A full urban infrastructure concession — the earliest template for what BAM does today: essential services, long asset lives, monopoly-adjacent.",color:"#94a3b8",era:"Origins"},
+  {year:"1904",event:"Rio de Janeiro Light",detail:"The franchise expands to Rio de Janeiro — operating city trams, electricity distribution, and gas lighting in South America’s largest city. Demonstrates early ability to replicate an infrastructure operating model across different geographies and regulatory contexts.",color:"#94a3b8",era:"Origins"},
+  {year:"1920s",event:"Hydro-electric scale-up in Brazil",detail:"Constructs major hydroelectric dams on Brazilian rivers (Cubatao, Paraiba) to supply rapidly growing industrial demand in Sao Paulo. Pioneered large-scale private hydro development decades before it became fashionable — and decades before ESG was a concept. This is the direct ancestor of Brookfield Renewable today.",color:"#94a3b8",era:"Origins"},
+  {year:"1945",event:"North American expansion begins",detail:"Brazilian operations mature; company broadens into Canadian natural resources. Noranda Mining (copper, zinc, lead), forest products, and natural gas distribution in Canada become significant. First meaningful exposure to cyclical resource industries — teaching lessons in cycle management still cited by Bruce Flatt.",color:"#64748b",era:"Diversification"},
+  {year:"1951",event:"Formal Brascan entity",detail:"Brazilian + Canadian = Brascan. At its peak, manages power utilities, urban transport, real estate, insurance, financial services, and natural resources across two continents. One of the first truly multinational industrial conglomerates. The breadth is extraordinary: city trams in Rio, copper mines in Ontario, shopping malls in Toronto.",color:"#64748b",era:"Diversification"},
+  {year:"1969",event:"Great Lakes Power acquisition",detail:"Acquires a 300MW regulated hydroelectric utility in Northern Ontario. This is the first pure infrastructure acquisition in Canada — regulated revenues, long asset life, essential service. The exact template used in every infrastructure fund BAM manages today. Proves regulated infrastructure compounding beats conglomerate diversification.",color:"#3b82f6",era:"Infrastructure Focus"},
+  {year:"1979",event:"Real estate entry (Carena Developments)",detail:"Enters Canadian shopping mall and commercial office tower development. Learns the cycle dynamics of commercial real estate through the Canadian RE boom-bust cycle of the 1980s-1990s. The lessons of overleveraged RE development in bad cycles become core to BAM’s conservative underwriting philosophy.",color:"#3b82f6",era:"Infrastructure Focus"},
+  {year:"1989",event:"Hees-Edper Group peak",detail:"Edper/Brascan reaches ~$35B in controlled assets — spanning real estate, natural resources, financial services, and consumer businesses. Canada’s largest private conglomerate by some measures. But the conglomerate structure proves unwieldy: too diversified, too leveraged, too complex. The GFC-precursor of the late 1980s hits hard.",color:"#d97706",era:"Infrastructure Focus"},
+  {year:"1997",event:"Bronfman family exits — Brookfield era begins",detail:"Peter Bronfman family exits. Asset base is restructured around real assets only. Financial services, consumer businesses, and non-core industrials are sold. Bruce Flatt begins his ascent, identifying the core thesis: hard assets, long lives, essential services, operational improvement. The conglomerate is dead; the real assets platform is born.",color:"#2563eb",era:"Transformation"},
+  {year:"2002",event:"Bruce Flatt becomes CEO",detail:"Doubles down on hard assets and operational improvement over financial engineering. Downside protection first becomes the firm’s investment philosophy. The first Brookfield Infrastructure Fund is formed. A fee-earning model is layered on top of the balance sheet platform.",color:"#2563eb",era:"Transformation"},
+  {year:"2008",event:"GFC: Counter-cyclical expansion",detail:"While competitors retrenched, BAM acquired distressed real estate and infrastructure. The crisis validated the franchise and dramatically expanded market share. Confirms the counter-cyclical deployment thesis that defines BAM’s culture to this day.",color:"#d97706",era:"Scale"},
+  {year:"2013",event:"Listed platforms mature",detail:"BIP (Infrastructure), BEP (Renewables), BBU (PE) operating as seasoned vehicles. Perpetual capital model validated. LP base diversifies globally. The listed vehicle structure creates permanent, fee-generating AUM for the first time.",color:"#16a34a",era:"Scale"},
+  {year:"2019",event:"Oaktree Acquisition ($4.7B)",detail:"Credit AUM jumps from ~$15B to $150B+ overnight. Howard Marks’ platform absorbed. Perpetual capital percentage surges from ~28% to ~48%. Credit becomes BAM’s second-largest segment by FBC.",color:"#7c3aed",era:"Scale"},
+  {year:"2022",event:"BAM Spins from BN",detail:"Brookfield Asset Management lists as a standalone pure-play asset manager. BN retains 73% ownership. BAM trades at premium fee-business multiple. Public float = ~27%. The split separates capital-light fee earnings from capital-heavy balance sheet.",color:"#db2777",era:"Today"},
+  {year:"2026",event:"Connor Teskey becomes CEO of BAM",detail:"Effective February 3, 2026. Bruce Flatt remains CEO of Brookfield Corporation (BN) and Chair of BAM’s board — a deliberate structural split: Teskey runs the capital-light manager, Flatt steers the asset-heavy parent. $1.18T AUM. $603B FBC. 87% perpetual capital. FRE of $867M in Q4 2025 alone (+28% YoY). 60 strategies targeted. Teskey’s first interview as CEO was The Knowledge Project with Shane Parrish (March 2026), where he articulated the 90% Rule and the Three Ds macro thesis as his roadmap.",color:"#0d9488",era:"Today"},
+];
+
+const KEY_PERSONS = [
+  {name:"Bruce Flatt",title:"Executive Chairman (CEO 2002-2025)",color:"#1e40af",
+   philosophy:["Focus on downside protection first — how much can I lose before asking how much can I make","Real assets with pricing power and long asset lives are the best long-term compounders","Operate the assets yourself — financial engineering alone does not create lasting value","Scale is a durable competitive advantage in alternatives — relationship capital compounds","Counter-cyclical deployment: deploy aggressively when others are fearful"],
+   legacy:"Built BAM from a Canadian conglomerate into the world’s second-largest alternative asset manager. The Oaktree acquisition, listed platforms structure, and fee-first business model are his legacy. Handed off a platform generating $867M per quarter in fee-related earnings."},
+  {name:"Connor Teskey",title:"CEO of BAM — the Capital-Light Manager (from Feb 2026)",color:"#15803d",
+   roleNote:"Teskey’s role is squarely on the BAM side — the capital-light, fee-earning manager. Bruce Flatt retains the CEO role at Brookfield Corporation (BN), the asset-heavy parent that owns real assets on its balance sheet. This split is deliberate: Teskey optimizes the fee engine, Flatt stewards the proprietary balance sheet. Both are essential to the flywheel, but they are running different businesses.",
+   philosophy:[
+     "The 90% Rule — from The Knowledge Project (March 2026): ‘When a deal feels 90% right, do it.’ Waiting for 100% certainty means the opportunity is gone. The goal is making 10 good decisions at 90% confidence — not one perfect decision. Velocity of good judgment compounds.",
+     "Downside protection first, always: investment committees focus entirely on how much can be lost before asking how much can be gained. ‘Upside takes care of itself if you protect the downside.’ This is direct continuity of Flatt’s philosophy — unchanged across the leadership transition.",
+     "Isolate the variables: every investment thesis must identify the 2–3 factors that determine success or failure. Complexity obscures judgment. If you cannot explain what must be true for the investment to work, you do not understand it well enough.",
+     "The Three Ds are a once-in-a-generation capital deployment opportunity: (1) Digitalization — AI infrastructure requiring $7T+ of data center and power capital; (2) Decarbonization — energy transition requiring $150T of investment over 25 years; (3) Deglobalization — supply-chain reshoring creating multi-decade industrial capex demand. BAM’s real assets platform is structurally positioned across all three.",
+     "Operating expertise is the new moat: corporations increasingly want a partner who can operate assets alongside providing capital. BAM’s 300+ company operating network — accumulated across infrastructure, renewable power, and PE over 125 years — is a competitive advantage that cannot be replicated quickly.",
+     "Culture transfer is the real succession challenge: the right model is pairing wise senior leaders (pattern recognition from prior cycles) with aggressive young talent (who understand AI, energy transition, and deglobalization). Small mistakes are allowed for learning; major errors are avoided through disciplined, incremental decision-making.",
+   ],
+   legacy:"Rose through BAM’s Renewable Power business — took it from ~$30B to $143B+ AUM. Articulated the Three Ds macro framework as BAM’s central thesis. Appointed CEO of BAM on February 3, 2026 at age 38, inheriting a platform with $1.18T AUM, $603B FBC, and ~$3.2B annualized FRE. His first interview as CEO was The Knowledge Project with Shane Parrish, where he laid out the 90% Rule, downside-first capital allocation, and the Three Ds as the investment roadmap for the next decade. The clean handoff from Flatt — a four-year planned succession — is itself evidence of the institutional discipline Teskey now leads."},
+];
+
+/* ---- BN DIRECT HOLDINGS (for right panel of Section 2) ---- */
+const BN_HOLDINGS = [
+  {name:"BIP — Infrastructure",icon:"⚡",bnStake:"~30%",color:"#1e40af",
+   what:"BN directly owns ~30% of Brookfield Infrastructure Partners (BIP, NYSE). BIP owns and operates real assets: regulated utilities in the UK and Australia, ports in Europe and Asia, toll roads in Brazil, data centers globally.",
+   howBAM:"BAM manages BIP’s capital (charging management fees on AUM). When BIP raises a new fund or expands, BAM co-structures the capital alongside third-party LPs — earning fees on the entire pool, not just BN’s portion."},
+  {name:"BEP — Renewable Power",icon:"🌱",bnStake:"~50%",color:"#15803d",
+   what:"BN directly owns ~50% of Brookfield Renewable Partners (BEP, NYSE). BEP owns hydro dams, wind farms, solar installations, Westinghouse nuclear services.",
+   howBAM:"BAM manages BEP’s fund-raising, investor relations, and fund structures. BAM earns ~$400M+ in annual fees from the renewable segment — on top of BN’s dividend from BEP itself."},
+  {name:"BBU — Private Equity",icon:"🏭",bnStake:"~75%",color:"#6d28d9",
+   what:"BN directly owns ~75% of Brookfield Business Partners (BBU, NYSE). BBU owns operating businesses: nuclear services, construction, business services, healthcare.",
+   howBAM:"BAM manages the fund structures alongside BBU. When BAM raises a PE fund, BBU co-invests, giving BAM’s fund instant deal credibility and scale."},
+  {name:"Real Estate (direct)",icon:"🏢",bnStake:"~100% of BPY assets",color:"#b45309",
+   what:"BN holds direct real estate assets after taking Brookfield Property Partners (BPY) private in 2021. Office towers, malls, logistics parks, and multifamily assets across the US, Canada, Europe, and Australia.",
+   howBAM:"BAM raises third-party LP capital into real estate funds (BSREP series, BREF series) alongside BN’s direct holdings. BAM earns fees on the LP capital — BN earns income from the assets themselves."},
+];
+
+/* ---- SEGMENT DATA ---- */
+const SEGMENT_DATA = [
+  {name:"Infrastructure",aum:247,fbc:106,fbc_pct:43,color:"#1e40af",icon:"⚡",flagship:"BIP (NYSE: BIP)",perpetual_pct:78,
+   description:"The world’s largest private infrastructure manager. Utilities, transport, midstream energy, and data infrastructure — essential services with monopoly-like characteristics, regulated revenues, and inflation linkage.",
+   approach:"Acquire high-quality infrastructure assets in regulated or contracted sectors. Improve operations. Benefit from long-duration, inflation-linked cash flows. Sell or refinance at higher multiples as the asset matures.",
+   five_year:"Expanded from $130B to $247B AUM (+90%). Flagship fund series now at $25B+. Data infrastructure (towers, fiber, data centers) grew from 5% to 20% of segment — fastest growing sub-sector.",
+   forward:"AI-driven data center demand is BAM’s single largest near-term opportunity. Working with hyperscalers including Google on multi-billion dollar data center programs. Power infrastructure for AI is a second major theme. Targeting $350B+ AUM by 2028.",
+   highlights:["$106B FBC — largest segment by fee-bearing capital","78% perpetual/long-dated capital","BIP: ~6% distribution yield, 25yr track record","Data infrastructure now 20%+ of segment and growing"],
+   subs:[
+     {name:"Regulated Utilities",pct_seg:35,pct_aum:8.6,color:"#1e40af"},
+     {name:"Transport (ports, rail, toll roads)",pct_seg:25,pct_aum:6.2,color:"#2563eb"},
+     {name:"Data Infrastructure (towers, fiber, data centers)",pct_seg:20,pct_aum:4.9,color:"#3b82f6"},
+     {name:"Midstream (pipelines, terminals)",pct_seg:15,pct_aum:3.7,color:"#60a5fa"},
+     {name:"Other / Emerging Infrastructure",pct_seg:5,pct_aum:1.2,color:"#93c5fd"},
+   ],
+   diff:"Regulated utilities provide a yield core that makes BIP a near-bond substitute in LP portfolios. But the data infrastructure and AI power thesis is turning infrastructure into a growth story — not just a yield story. BAM is uniquely positioned to capture both dynamics simultaneously."},
+  {name:"Renewable & Transition",aum:143,fbc:67,fbc_pct:47,color:"#15803d",icon:"🌱",flagship:"BEP (NYSE: BEP)",perpetual_pct:82,
+   description:"The world’s largest publicly traded renewable power platform. Solar, wind, hydroelectric, nuclear services, and transition assets — the explicit beneficiary of the global decarbonization mega-trend.",
+   approach:"Own long-duration power generation assets under long-term PPAs. Sell power to investment-grade corporate and government offtakers at contracted rates. Develop new capacity in markets with structural power shortfalls.",
+   five_year:"Doubled AUM from ~$70B to $143B. Moved beyond hydro and wind into solar, nuclear (Westinghouse acquisition), and transition assets. PPAs now signed with hyperscalers (Microsoft, Google, Amazon) for AI power demand.",
+   forward:"The AI power demand thesis is the central driver. Hyperscalers need 24/7 firm power — BAM’s hydro and nuclear assets are uniquely positioned. Developing 200GW+ of new renewable capacity. Targeting $200B+ AUM.",
+   highlights:["82% perpetual/long-dated capital","BEP: ~5% distribution yield","Westinghouse Nuclear: only large private nuclear services platform","AI hyperscalers signing 10-20 year PPAs with BEP assets"],
+   subs:[
+     {name:"Hydroelectric power",pct_seg:30,pct_aum:3.6,color:"#15803d"},
+     {name:"Wind power",pct_seg:20,pct_aum:2.4,color:"#16a34a"},
+     {name:"Solar power",pct_seg:20,pct_aum:2.4,color:"#22c55e"},
+     {name:"Nuclear services (Westinghouse)",pct_seg:12,pct_aum:1.5,color:"#4ade80"},
+     {name:"Transition assets (gas-to-clean bridge)",pct_seg:10,pct_aum:1.2,color:"#86efac"},
+     {name:"Other / Developing",pct_seg:8,pct_aum:1.0,color:"#bbf7d0"},
+   ],
+   diff:"Westinghouse Nuclear (acquired 2023) is the only large private nuclear services platform globally. Uniquely positions BAM to serve AI’s 24/7 firm power requirement — something intermittent renewables cannot fulfill alone. This is BAM’s highest-conviction differentiated asset."},
+  {name:"Private Equity",aum:155,fbc:48,fbc_pct:31,color:"#6d28d9",icon:"🏭",flagship:"BBU (NYSE: BBU)",perpetual_pct:62,
+   description:"Business services, industrials, healthcare, and technology-enabled services. Operational transformation through BAM’s 300+ company operating network — not financial leverage.",
+   approach:"Acquire good businesses with operational complexity. Bring in BAM’s network of operating executives. Improve processes, pricing power, and market position. Exit at higher multiples to strategic or financial buyers.",
+   five_year:"Shifted mix toward business services and tech-enabled businesses. Exited several heavy industrial assets at strong multiples. PE segment evolving toward operational private equity — more like BAM’s infrastructure playbook.",
+   forward:"Healthcare services, technology-enabled infrastructure, and business process outsourcing are priority sectors. Deglobalization reshoring opportunities in industrial manufacturing. Targeting $200B+ AUM.",
+   highlights:["$155B AUM — significant PE scale","BBU: listed PE vehicle, unique in private equity","Operational transformation vs. financial engineering","Deglobalization reshoring theme = key forward driver"],
+   subs:[
+     {name:"Business services",pct_seg:35,pct_aum:4.6,color:"#6d28d9"},
+     {name:"Industrials & manufacturing",pct_seg:25,pct_aum:3.3,color:"#7c3aed"},
+     {name:"Healthcare services",pct_seg:20,pct_aum:2.6,color:"#8b5cf6"},
+     {name:"Technology-enabled services",pct_seg:15,pct_aum:2.0,color:"#a78bfa"},
+     {name:"Other",pct_seg:5,pct_aum:0.7,color:"#c4b5fd"},
+   ],
+   diff:"BAM’s PE is not financial-engineering PE. It is operational transformation PE — using the 300+ company network to improve businesses using expertise imported from BAM’s infrastructure and real assets playbook. This is genuinely differentiated vs. traditional buyout — but it means PE’s return profile looks more like infrastructure (steady, lower leverage) than classic PE (levered, exit-dependent)."},
+  {name:"Real Estate",aum:273,fbc:102,fbc_pct:37,color:"#b45309",icon:"🏢",flagship:"BPY + Private RE Funds",perpetual_pct:71,
+   description:"One of the world’s largest private real estate managers. Global portfolio spanning office, retail (malls), multifamily, logistics, hospitality, and data center real estate. Actively repositioning from legacy office exposure.",
+   approach:"Acquire high-quality real estate assets with re-leasing or re-development optionality. Actively manage leasing, redevelopment, and capital allocation. Source value-add situations in markets with structural supply constraints.",
+   five_year:"Navigated significant headwinds in office post-COVID. Reduced office concentration. Logistics and multifamily grew substantially. Several retail mall repositionings into mixed-use (Ala Moana, Brookfield Place) completed.",
+   forward:"Logistics and data center real estate are the growth engines. Capital-light strategy: raising third-party LP capital for real estate rather than deploying BN balance sheet.",
+   highlights:["$273B AUM — largest segment by total AUM","Capital-light pivot: raising LPs vs. balance sheet","Logistics + data center RE: high-growth sub-segments","Office repositioning into mixed-use and AI campus development"],
+   subs:[
+     {name:"Logistics / Industrial",pct_seg:25,pct_aum:5.8,color:"#b45309"},
+     {name:"Office (global portfolio)",pct_seg:20,pct_aum:4.6,color:"#d97706"},
+     {name:"Retail / Mixed-use (malls)",pct_seg:18,pct_aum:4.2,color:"#f59e0b"},
+     {name:"Multifamily / Residential",pct_seg:17,pct_aum:3.9,color:"#fbbf24"},
+     {name:"Data Center Real Estate",pct_seg:10,pct_aum:2.3,color:"#fcd34d"},
+     {name:"Hospitality & Other",pct_seg:10,pct_aum:2.3,color:"#fde68a"},
+   ],
+   diff:"Scale and operating platform differentiate BAM in real estate. Managing $273B means BAM can take on mega-projects that no other private RE manager can. The liability is the legacy office exposure — still 20% of segment despite active management. The opportunity is data center RE, which few traditional RE managers have the operational expertise to underwrite."},
+  {name:"Credit",aum:363,fbc:279,fbc_pct:77,color:"#be123c",icon:"💳",flagship:"Oaktree Capital Management + Brookfield Credit",perpetual_pct:94,
+   description:"BAM’s fastest-growing and most profitable segment by FBC. Anchored by Oaktree Capital (Howard Marks heritage). Direct lending, high yield, distressed debt, structured credit, and insurance asset management.",
+   approach:"Oaktree: opportunistic credit across cycles — highest returns in distressed. Brookfield Credit: direct lending to infrastructure and real assets borrowers. Insurance solutions: managing balance sheets for insurance companies seeking yield.",
+   five_year:"Grew from $150B to $363B AUM — by far the largest growth story. Insurance solutions and Barclays private credit partnership added ~$100B of new FBC. Now 77% of FBC is perpetual/long-dated.",
+   forward:"Angel Oak acquisition (2025) adds mortgage origination. Targeting insurance AUM to grow from $100B to $200B+. Credit will likely be #1 by total AUM within 3 years.",
+   highlights:["$363B AUM — largest segment total AUM","$279B FBC — 46% of all BAM fee-bearing capital","94% perpetual/long-dated — highest in BAM","Oaktree: 30+ year track record, 16% gross IRR in distressed"],
+   subs:[
+     {name:"Distressed debt / Oaktree Opps funds",pct_seg:30,pct_aum:8.1,color:"#be123c"},
+     {name:"High yield bonds",pct_seg:24,pct_aum:6.5,color:"#dc2626"},
+     {name:"Performing credit / direct lending",pct_seg:20,pct_aum:5.4,color:"#e11d48"},
+     {name:"CLOs",pct_seg:12,pct_aum:3.2,color:"#f43f5e"},
+     {name:"Real estate credit",pct_seg:9,pct_aum:2.4,color:"#fb7185"},
+     {name:"Infrastructure credit",pct_seg:5,pct_aum:1.4,color:"#fda4af"},
+   ],
+   diff:"Distressed + HY orientation is contrarian vs. peers all racing into direct lending. Oaktree’s cycle-turning fits Flatt’s buy-when-others-sell philosophy. But: credit is still the newest/smallest pillar and the Oaktree integration is still maturing under full ownership (completed 2025)."},
+];
+
+const PERP_EVOLUTION = [
+  {year:"2018",pct:28,fbc:120,note:"Pre-Oaktree: mostly real assets"},
+  {year:"2019",pct:48,fbc:290,note:"Oaktree acquisition: credit FBC surges"},
+  {year:"2020",pct:54,fbc:330,note:"Insurance solutions launch"},
+  {year:"2021",pct:63,fbc:390,note:"Evergreen vehicles scale"},
+  {year:"2022",pct:70,fbc:440,note:"BAM spin; credit fundraising accelerates"},
+  {year:"2023",pct:76,fbc:480,note:"Barclays partnership; Angel Oak pipeline"},
+  {year:"2024",pct:83,fbc:550,note:"Record $135B fundraising year"},
+  {year:"2025",pct:87,fbc:603,note:"Angel Oak closed; 87% perpetual/long-dated"},
+];
+
+const PERP_VEHICLES = [
+  {type:"Listed Perpetual Vehicles",pct_fbc:22,examples:"BIP, BEP, BBU, Brookfield Business",color:"#1d4ed8",desc:"Exchange-listed partnerships with permanent capital. Never liquidates. Distributions from cash flow. ~$133B FBC."},
+  {type:"Evergreen / Open-End Funds",pct_fbc:31,examples:"BCRED, BEPIF, infrastructure evergreen, real estate open-end",color:"#15803d",desc:"No end date, continuous subscriptions/redemptions. Retail and institutional. Largest growth category. ~$187B FBC."},
+  {type:"Insurance AUM",pct_fbc:17,examples:"Oaktree insurance, Angel Oak, third-party mandates",color:"#6d28d9",desc:"Managing insurance company balance sheets. Extremely sticky — insurance portfolios rarely redeem. ~$103B FBC."},
+  {type:"Long-Dated Institutional Funds (10yr+)",pct_fbc:17,examples:"Infrastructure Fund VI, Renewable Fund V, BSREP IV",color:"#b45309",desc:"Closed-end funds with 10-year+ lives plus extension options. Classified as long-dated in BAM’s perpetual metric. ~$103B FBC."},
+  {type:"Standard Closed-End Funds (sub-10yr)",pct_fbc:13,examples:"Oaktree Opportunities Fund XII, PE Fund V",color:"#64748b",desc:"Traditional private equity/credit fund structure. 7-10 year life. Only 13% of FBC — BAM deliberately reduced this category. ~$78B FBC."},
+];
+
+/* ---- GLOSSARY ---- */
+const GLOSSARY_ABBREV = [
+  {term:"AUM",full:"Assets Under Management",def:"Total market value of investments managed on behalf of clients. BAM: $1.18T as of Q4 2025. Note: not all AUM is fee-bearing — BAM’s FBC ($603B) is the fee-earning subset."},
+  {term:"FBC",full:"Fee-Bearing Capital",def:"The subset of AUM on which BAM actively charges management fees. $603B as of Q4 2025. This is the denominator that directly drives FRE — not total AUM."},
+  {term:"FRE",full:"Fee-Related Earnings",def:"Fee revenues minus direct segment costs. Does NOT include carried interest or investment income. The primary recurring earnings metric for BAM. Q4 2025: $867M (+28% YoY). Annualized run-rate: ~$3.2B."},
+  {term:"DE",full:"Distributable Earnings",def:"FRE + carried interest received + BAM’s share of earnings from direct investments. Includes realized performance income. More volatile than FRE. Q4 2025: $767M (+18% YoY)."},
+  {term:"BN",full:"Brookfield Corporation",def:"The parent holding company owning 73% of BAM. Also directly owns ~$100B of real assets via BIP, BEP, BBU, and direct real estate stakes. Asset-heavy; generates returns via appreciation + income, not fees."},
+  {term:"BIP",full:"Brookfield Infrastructure Partners",def:"NYSE/TSX listed partnership. Owns and operates infrastructure assets globally — utilities, transport, data, midstream. Core listed vehicle of BAM’s Infrastructure segment. ~6% distribution yield."},
+  {term:"BEP",full:"Brookfield Renewable Partners",def:"NYSE/TSX listed partnership. World’s largest public renewable power platform. Core listed vehicle of BAM’s Renewable & Transition segment. ~5% distribution yield."},
+  {term:"BBU",full:"Brookfield Business Partners",def:"NYSE/TSX listed partnership. Listed private equity vehicle focused on business services, industrials, and operational transformation. Unique structure — no other large PE firm has a listed co-investment vehicle."},
+  {term:"BPY",full:"Brookfield Property Partners",def:"Former listed real estate vehicle — taken private by BN in 2021. Real estate is now managed via private funds (BSREP, BREF series) rather than a listed vehicle."},
+  {term:"PE",full:"Private Equity",def:"Within BAM context, refers to the Private Equity segment — operational transformation of good businesses, not financial engineering. PE is BAM’s lowest FBC/AUM ratio segment (31%) reflecting higher selectivity."},
+  {term:"CLO",full:"Collateralized Loan Obligation",def:"A structured credit vehicle that pools leveraged loans and tranches them by risk/return. BAM’s Credit segment (via Oaktree) manages CLOs as part of its structured credit strategy. ~$12B AUM in CLOs."},
+  {term:"PPA",full:"Power Purchase Agreement",def:"Long-term contract (typically 10-25 years) between a power generator and a buyer (corporate, government, utility). BAM’s BEP signs PPAs with hyperscalers (Google, Microsoft, Amazon) to fund new renewable capacity."},
+  {term:"LP",full:"Limited Partner",def:"Investor in a fund who provides capital but has limited liability and does not manage day-to-day operations. BAM’s LPs include sovereign wealth funds, pensions, insurers, and increasingly retail investors."},
+  {term:"GP",full:"General Partner",def:"The fund manager (BAM in this case) who manages day-to-day operations, makes investment decisions, and earns management fees and carried interest."},
+  {term:"HY",full:"High Yield (Bonds)",def:"Bonds rated below investment grade (below BBB-/Baa3). Higher risk, higher return. Oaktree manages one of the world’s largest high yield bond strategies — a core Oaktree capability since the 1990s."},
+  {term:"IRR",full:"Internal Rate of Return",def:"The annualized return on an investment, accounting for the timing of cash flows. The primary return metric for private equity and infrastructure funds. BAM reports gross IRRs by fund vintage."},
+  {term:"GFC",full:"Global Financial Crisis",def:"2008-2009 financial crisis. One of BAM’s defining moments — deployed aggressively into distressed assets while competitors retrenched. This counter-cyclical behavior is central to BAM culture."},
+  {term:"NAV",full:"Net Asset Value",def:"Total assets minus total liabilities. Used for real estate and credit vehicles to mark portfolios to market. BAM’s listed vehicles (BIP, BEP) publish NAV per unit."},
+  {term:"REIT",full:"Real Estate Investment Trust",def:"A structure that allows investors to own income-producing real estate with tax efficiency. BAM uses REIT structures for some of its listed real estate vehicles in the US."},
+  {term:"SIFI",full:"Systemically Important Financial Institution",def:"A regulatory designation (from the Financial Stability Oversight Council) applied to firms whose failure could threaten the broader financial system. SIFI designation brings additional capital requirements and oversight."},
+];
+
+const GLOSSARY_TERMS = [
+  {term:"Perpetual Capital",def:"Fee-bearing capital that has no defined end date — either listed vehicles (BIP, BEP, BBU), evergreen funds with continuous subscriptions/redemptions, or insurance mandates. BAM: 87% of FBC is perpetual or long-dated (10yr+). This is the structural feature that distinguishes BAM from traditional fund managers."},
+  {term:"Evergreen Fund",def:"An open-ended fund with no fixed termination date. LPs can subscribe or redeem periodically (e.g., quarterly). Unlike traditional closed-end PE funds, evergreen vehicles provide BAM with permanent fee streams. BEPIF and BCRED are BAM’s primary retail-facing evergreen vehicles."},
+  {term:"Carried Interest (Carry)",def:"The performance fee earned by the GP (BAM) after LPs receive a preferred return. Typically 20% of profits above an 8% hurdle rate. Carry is episodic — realized only on exits. It is NOT included in FRE (which is recurring and predictable). For BAM, carry is upside, not base case."},
+  {term:"Co-Investment",def:"When an LP invests directly in a deal alongside the fund, rather than only through the fund. BN regularly co-invests alongside BAM funds, providing larger deal capacity and aligning interests. Co-investments typically carry no management fee — so they expand AUM without proportionally expanding FRE."},
+  {term:"The Three Ds",def:"Connor Teskey’s macro thesis for the next decade: (1) Digitalization — AI infrastructure requiring $7T+ of capital; (2) Decarbonization — energy transition requiring $150T of investment; (3) Deglobalization — supply chain reshoring creating industrial capex demand. BAM’s strategy is explicitly positioned around all three."},
+  {term:"Operating Expertise",def:"BAM’s stated competitive advantage: it does not just provide capital, it operates the assets. BAM employs industry specialists who run utilities, power plants, logistics hubs, and hospitals as actual businesses. This is the legacy of 125 years of operating real assets — not a claim newer PE firms can credibly make."},
+  {term:"Distressed Debt",def:"Debt of companies in or near bankruptcy, trading at significant discounts to face value. Oaktree (owned by BAM) is the global leader in distressed debt investing. Returns are highest when purchased at maximum pessimism — the classic counter-cyclical bet that aligns with BAM’s culture."},
+  {term:"Insurance Solutions",def:"Managing the investment portfolio of insurance companies, who need long-duration, investment-grade yield to match their insurance liabilities. BAM has built a $100B+ insurance AUM business via Oaktree and Angel Oak (acquired 2025). Insurance AUM is 94% perpetual — the stickiest capital BAM manages."},
+  {term:"Fee Compression",def:"The secular trend of LPs negotiating lower management fees. Traditional 2%/20% (2% management fee, 20% carry) has compressed to ~1%/15-20% for mega-funds. BAM’s blended fee is ~0.8% on FBC due to credit segment volume. The trend is real but BAM’s scale and LP relationships partially offset it."},
+  {term:"Preferred Return / Hurdle Rate",def:"The minimum return (typically 8%) that LPs must receive before the GP earns any carried interest. Protects LPs against poor fund performance. BAM’s flagship funds use a standard 8% preferred return with a 20% carry split above it."},
+];
+
+const GLOSSARY_KPIS = [
+  {kpi:"Fee-Related Earnings (FRE)",current:"$867M (Q4 2025) / ~$3.2B annualized",growth:"+28% YoY in Q4 2025. 5-year CAGR ~25%. Target: ~20% annual growth through 2029 per Investor Day guidance.",watch:"PRIMARY metric. Management explicitly targets FRE as the core value driver. Every earnings call opens with FRE and FRE-per-share. Dividend growth of ~15%/yr is directly tied to FRE growth. The stock trades on a P/FRE multiple (currently 25-35x).",stars:5,color:"#1e40af"},
+  {kpi:"FRE per Share",current:"$0.53 (Q4 2025) — $2.12 annualized",growth:"+28% YoY. Target: ~$1.00/share by 2029 (doubling from current run-rate).",watch:"PRIMARY per-share metric. Analysts use FRE/share as the primary valuation driver. Management explicitly stated $1.00 FRE/share by 2029 at Investor Day. This is the most commonly cited forward target.",stars:5,color:"#2563eb"},
+  {kpi:"Fee-Bearing Capital (FBC)",current:"$603B (Q4 2025)",growth:"+~$80B in 2025. Long-run trajectory of ~12-15% annually driven by new fundraising plus fee-eligible appreciation.",watch:"FBC is the AUM that actually earns fees. Management reports FBC by segment, perpetual vs. long-dated vs. standard. It is the denominator that drives FRE. FBC growth is the leading indicator — FRE follows with a lag.",stars:5,color:"#15803d"},
+  {kpi:"Annual Fundraising",current:"$112B raised in FY 2025",growth:"Record $135B in 2024, $112B in 2025. Target: $150B+ by 2026-2027 as 60+ strategies scale simultaneously.",watch:"Fundraising is the leading indicator for FBC growth (and thus FRE growth 12-18 months later). Management tracks by strategy, region, and LP channel. Any fundraising slowdown signals a 1-year lag into FRE weakness.",stars:4,color:"#7c3aed"},
+  {kpi:"Distributable Earnings (DE)",current:"$767M (Q4 2025)",growth:"+18% YoY. Includes FRE + realized carried interest + investment income.",watch:"Secondary to FRE. DE includes episodic carry so it is more volatile. Management uses DE to justify and grow the dividend. Meaningful but less predictable than FRE — a good quarter of realizations can spike DE significantly.",stars:4,color:"#0d9488"},
+  {kpi:"Perpetual Capital %",current:"87% of FBC = ~$525B perpetual or long-dated",growth:"From 28% (2018) to 87% (2025). Stable at 87-90% expected going forward.",watch:"Composition metric, not a direct growth metric. Management cites this as evidence of earnings quality. A higher perpetual % justifies a higher P/FRE multiple. Watch it if it starts declining — signals a mix shift back toward transactional capital.",stars:3,color:"#b45309"},
+  {kpi:"Dividend per Share",current:"$0.21/quarter ($0.84 annualized)",growth:"+15% YoY. Management targets ~15% annual dividend growth tied to FRE growth.",watch:"Signals management confidence in FRE sustainability. Retail and wealth management LPs watch this closely. BAM is marketing itself as a dividend growth story to the $250T wealth channel. A cut would be highly damaging to the narrative.",stars:3,color:"#be123c"},
+];
+
+/* ================================================================
+   CHART COMPONENTS
+   ================================================================ */
+const ScaleChart = ({ dark }) => {
+  const [hovered, setHovered] = useState(null);
+  var W=560,H=240,pL=52,pR=64,pT=16,pB=40,cW=W-pL-pR,cH=H-pT-pB,maxRev=5.5,n=SCALE_DATA.length;
+  var bW=Math.floor(cW/n)-8;
+  var xOf=function(i){return pL+(i/n)*cW+4;};
+  var gc=dark?"#1f2937":"#e2e8f0",lc=dark?"#64748b":"#94a3b8";
+  return (
+    <div>
+      <div style={{display:"flex",gap:18,marginBottom:12,flexWrap:"wrap"}}>
+        {[["#1e40af","Fee Revenue ($B)"],["#93c5fd","FRE ($B)"],[null,"FRE Margin (right axis)"]].map(function(it,i){
+          return <div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text-3)"}}>
+            {i<2?<div style={{width:12,height:12,background:it[0],borderRadius:2}}></div>:<div style={{width:22,height:2,background:"#f59e0b",display:"inline-block"}}></div>}{it[1]}</div>;
+        })}
+      </div>
+      <svg width="100%" viewBox={"0 0 "+W+" "+H} style={{maxWidth:W,display:"block"}}>
+        {[0,1,2,3,4,5].map(function(v){return <line key={v} x1={pL} x2={W-pR} y1={pT+cH-(v/5)*cH} y2={pT+cH-(v/5)*cH} stroke={gc} strokeWidth="1"/>;  })}
+        {[0,1,2,3,4,5].map(function(v){return <text key={v} x={pL-6} y={pT+cH-(v/5)*cH+4} textAnchor="end" fill={lc} fontSize="10">${v}B</text>; })}
+        {[40,45,50,55,60].map(function(v){return <text key={v} x={W-pR+6} y={pT+cH-((v-35)/30)*cH+4} textAnchor="start" fill="#f59e0b" fontSize="10" opacity="0.85">{v}%</text>; })}
+        {SCALE_DATA.map(function(d,i){
+          var x=xOf(i),isH=hovered===i;
+          return <g key={i} onMouseEnter={function(){setHovered(i);}} onMouseLeave={function(){setHovered(null);}}>
+            <rect x={x} y={pT+cH-(d.fee_rev/maxRev)*cH} width={bW} height={(d.fee_rev/maxRev)*cH} fill={isH?"#2563eb":"#1e40af"} opacity={isH?1:0.85} rx="2"/>
+            <rect x={x+bW*0.15} y={pT+cH-(d.fre/maxRev)*cH} width={bW*0.7} height={(d.fre/maxRev)*cH} fill={isH?"#bfdbfe":"#93c5fd"} opacity={isH?1:0.85} rx="2"/>
+            <text x={x+bW/2} y={H-pB+14} textAnchor="middle" fill={lc} fontSize="11">{d.year}</text>
+          </g>;
+        })}
+        {SCALE_DATA.map(function(d,i){
+          if(i===0) return null;
+          var p=SCALE_DATA[i-1],x1=xOf(i-1)+bW/2,x2=xOf(i)+bW/2;
+          var y1=pT+cH-((p.margin-35)/30)*cH,y2=pT+cH-((d.margin-35)/30)*cH;
+          return <line key={"ml"+i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#f59e0b" strokeWidth="2.5"/>;
+        })}
+        {SCALE_DATA.map(function(d,i){
+          var x=xOf(i)+bW/2,y=pT+cH-((d.margin-35)/30)*cH;
+          return <g key={"dt"+i}><circle cx={x} cy={y} r="4" fill="#f59e0b"/>
+            {hovered===i&&<g><rect x={x-62} y={y-42} width={124} height={36} rx="6" fill={dark?"#1e293b":"#fff"} stroke={dark?"#334155":"#e2e8f0"} strokeWidth="1"/>
+              <text x={x} y={y-26} textAnchor="middle" fill="#f59e0b" fontSize="11" fontWeight="700">{d.margin}% FRE Margin</text>
+              <text x={x} y={y-10} textAnchor="middle" fill={dark?"#94a3b8":"#64748b"} fontSize="10">FRE ${d.fre}B | Rev ${d.fee_rev}B</text></g>}
+          </g>;
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const PerpChart = ({ dark }) => {
+  const [hovered, setHovered] = useState(null);
+  var W=600,H=220,pL=44,pR=62,pT=16,pB=40,cW=W-pL-pR,cH=H-pT-pB,n=PERP_EVOLUTION.length,maxFBC=700;
+  var xOf=function(i){return pL+(i/(n-1))*cW;};
+  var yP=function(v){return pT+cH-(v/100)*cH;};
+  var yF=function(v){return pT+cH-(v/maxFBC)*cH;};
+  var pp=PERP_EVOLUTION.map(function(d,i){return xOf(i)+","+yP(d.pct);}).join(" ");
+  var ab=PERP_EVOLUTION.map(function(d,i){return xOf(i)+","+(pT+cH);}).reverse().join(" ");
+  var gc=dark?"#1f2937":"#e2e8f0",lc=dark?"#64748b":"#94a3b8";
+  return (
+    <div>
+      <div style={{display:"flex",gap:20,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text-3)"}}><div style={{width:22,height:2,background:"#1e40af",display:"inline-block"}}></div>Perpetual/Long-Dated %</div>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text-3)"}}><div style={{width:12,height:12,background:"#93c5fd",borderRadius:2,opacity:0.7,display:"inline-block"}}></div>FBC ($B, right axis)</div>
+      </div>
+      <svg width="100%" viewBox={"0 0 "+W+" "+H} style={{maxWidth:W,display:"block"}}>
+        <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1e40af" stopOpacity={dark?"0.35":"0.15"}/><stop offset="100%" stopColor="#1e40af" stopOpacity="0.02"/></linearGradient></defs>
+        {[0,25,50,75,100].map(function(v){return <g key={v}><line x1={pL} x2={W-pR} y1={yP(v)} y2={yP(v)} stroke={gc} strokeWidth="1"/><text x={pL-6} y={yP(v)+4} textAnchor="end" fill={lc} fontSize="10">{v}%</text></g>;})}
+        {[0,200,400,600].map(function(v){return <text key={v} x={W-pR+6} y={yF(v)+4} textAnchor="start" fill={lc} fontSize="10">${v}B</text>;})}
+        {PERP_EVOLUTION.map(function(d,i){return <rect key={i} x={xOf(i)-13} y={yF(d.fbc)} width={22} height={pT+cH-yF(d.fbc)} fill="#93c5fd" opacity={dark?"0.35":"0.5"} rx="2"/>;})}
+        <polygon points={pp+" "+ab} fill="url(#pg)"/>
+        <polyline points={pp} fill="none" stroke="#1e40af" strokeWidth="2.5" strokeLinejoin="round"/>
+        <line x1={xOf(1)} y1={pT} x2={xOf(1)} y2={pT+cH} stroke="#f59e0b" strokeWidth="1" strokeDasharray="4,3" opacity="0.7"/>
+        <text x={xOf(1)+4} y={pT+14} fill="#f59e0b" fontSize="10">Oaktree</text>
+        {PERP_EVOLUTION.map(function(d,i){
+          var cx=xOf(i),cy=yP(d.pct),isH=hovered===i,tl=i>5;
+          return <g key={i} onMouseEnter={function(){setHovered(i);}} onMouseLeave={function(){setHovered(null);}}>
+            <circle cx={cx} cy={cy} r={isH?7:5} fill={isH?"#2563eb":"#1e40af"} style={{cursor:"default"}}/>
+            <text x={cx} y={H-pB+14} textAnchor="middle" fill={lc} fontSize="10">{d.year}</text>
+            {isH&&<g><rect x={tl?cx-136:cx+6} y={cy-62} width={130} height={54} rx="6" fill={dark?"#1e293b":"#fff"} stroke={dark?"#3b82f6":"#bfdbfe"} strokeWidth="1.5"/>
+              <text x={tl?cx-71:cx+71} y={cy-44} textAnchor="middle" fill="#1e40af" fontSize="12" fontWeight="700">{d.pct}% perpetual</text>
+              <text x={tl?cx-71:cx+71} y={cy-28} textAnchor="middle" fill={dark?"#94a3b8":"#64748b"} fontSize="10">FBC: ${d.fbc}B</text>
+              <text x={tl?cx-71:cx+71} y={cy-13} textAnchor="middle" fill="#d97706" fontSize="9">{d.note}</text></g>}
+          </g>;
+        })}
+      </svg>
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 1
+   ================================================================ */
+const Section1 = ({ dark }) => {
+  const [view, setView] = useState("all");
+  const [expanded, setExpanded] = useState(null);
+  const [callerIdx, setCallerIdx] = useState(null);
+  var filtered=PROS_CONS.filter(function(p){if(view==="all")return true;if(view==="pros")return p.type==="pro";return p.type==="con";});
+  return (
+    <div className="fade-in">
+      <div style={{marginBottom:28}}>
+        <div className="sec-badge">Part 1</div>
+        <h2 style={{fontSize:24,fontWeight:800,color:"var(--text-1)",marginBottom:8}}>Large-Scale Asset Management</h2>
+        <p style={{color:"var(--text-3)",fontSize:14,lineHeight:1.65,maxWidth:760}}>Why does size matter in alternatives? The largest managers have structural advantages — but also face real, structural challenges. Both sides are true. Understanding both is prerequisite to evaluating BAM.</p>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:22}}>
+        {[["all","All Factors"],["pros","Advantages"],["cons","Challenges"]].map(function(it){
+          var k=it[0],label=it[1],isA=view===k;
+          return <button key={k} onClick={function(){setView(k);}} style={{padding:"7px 16px",borderRadius:6,border:"1px solid var(--border)",cursor:"pointer",fontWeight:600,fontSize:12,background:isA?(k==="pros"?"#15803d":k==="cons"?"#be123c":"var(--accent)"):"var(--bg-btn-inactive)",color:isA?"#fff":"var(--text-3)",transition:"all 0.2s"}}>{label}</button>;
+        })}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(290px, 1fr))",gap:10,marginBottom:34}}>
+        {filtered.map(function(p){
+          var isE=expanded===p.id;
+          return <div key={p.id} onClick={function(){setExpanded(isE?null:p.id);}} style={{background:"var(--bg-card)",border:"1px solid var(--border)",borderLeft:"3px solid "+(p.type==="pro"?"#16a34a":"#dc2626"),borderRadius:8,padding:14,cursor:"pointer",transition:"all 0.2s",boxShadow:isE?"var(--shadow)":"var(--shadow-sm)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}><span style={{fontSize:18}}>{p.icon}</span><span className={p.type==="pro"?"tag-pro":"tag-con"} style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,padding:"2px 7px",borderRadius:4}}>{p.type==="pro"?"Advantage":"Challenge"}</span></div>
+                <div style={{fontWeight:700,color:"var(--text-1)",fontSize:13}}>{p.title}</div>
+              </div>
+              <span style={{color:"var(--text-4)",fontSize:14,marginLeft:8}}>{isE?"▲":"▼"}</span>
+            </div>
+            {isE&&<div style={{marginTop:10}}><div style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65,marginBottom:7}}><strong>{p.headline}.</strong></div><div style={{color:"var(--text-3)",fontSize:12,lineHeight:1.65}}>{p.detail}</div></div>}
+            {!isE&&<div style={{color:"var(--text-4)",fontSize:11,marginTop:5}}>{p.headline.substring(0,58)}...</div>}
+          </div>;
+        })}
+      </div>
+      <div style={{marginBottom:34}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:3}}>Economies of Scale: Fee Revenue vs. FRE Margin</h3>
+        <p style={{color:"var(--text-3)",fontSize:12,marginBottom:14}}>FRE margin expands from 48% (2020) to 58% (2025E) as fixed costs spread over a growing AUM base</p>
+        <div className="card"><ScaleChart dark={dark}/></div>
+      </div>
+      <div style={{marginBottom:34}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:4}}>Who Calls You When You Are the World's Largest</h3>
+        <p style={{color:"var(--text-3)",fontSize:12,marginBottom:14,lineHeight:1.6}}>At $1.18T AUM, BAM occupies a category of its own. Certain capital allocators can only work with counterparties at this scale — creating a self-reinforcing competitive moat.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(270px, 1fr))",gap:10}}>
+          {WHO_CALLS.map(function(w,i){
+            var isO=callerIdx===i;
+            return <div key={i} onClick={function(){setCallerIdx(isO?null:i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isO?"var(--accent)":"var(--border)"),borderRadius:8,padding:14,cursor:"pointer",transition:"all 0.2s",boxShadow:"var(--shadow-sm)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}><span style={{fontSize:20}}>{w.icon}</span><span style={{fontWeight:700,color:"var(--text-1)",fontSize:13}}>{w.category}</span></div>
+              <div style={{color:"var(--text-4)",fontSize:11}}>{w.examples}</div>
+              {isO&&<div style={{marginTop:10}}><p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.6,marginBottom:8}}>{w.why}</p><div style={{display:"flex",gap:8}}><span style={{background:"var(--accent-faint)",padding:"3px 9px",borderRadius:5,fontSize:11,color:"var(--accent)",fontWeight:600}}>Ticket: {w.ticket}</span><span style={{background:"var(--bg-inner)",padding:"3px 9px",borderRadius:5,fontSize:11,color:"var(--text-3)",border:"1px solid var(--border)"}}>{w.frequency}</span></div></div>}
+            </div>;
+          })}
+        </div>
+      </div>
+      <div>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:4}}>Industry Risks — Real, But Shared By All</h3>
+        <p style={{color:"var(--text-3)",fontSize:12,marginBottom:14,lineHeight:1.6}}>These risks apply equally to Blackstone, KKR, Apollo, and every other large alternative manager. The question is always relative: who manages them best?</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(270px, 1fr))",gap:10}}>
+          {RISKS.map(function(r,i){
+            return <div key={i} className="card" style={{borderLeft:"3px solid "+r.lcolor}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}><span style={{fontWeight:700,color:"var(--text-1)",fontSize:13}}>{r.title}</span><span style={{fontSize:11,fontWeight:700,color:r.lcolor,background:r.lcolor+"18",padding:"2px 7px",borderRadius:4,border:"1px solid "+r.lcolor+"44",whiteSpace:"nowrap",marginLeft:8}}>Risk: {r.level}</span></div>
+              <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.6,marginBottom:8}}>{r.desc}</p>
+              <div className="card-inner"><div style={{fontSize:10,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",marginBottom:3}}>Industry Context</div><p style={{color:"var(--text-3)",fontSize:11,lineHeight:1.5}}>{r.context}</p></div>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 2 — LEFT: TIMELINE  |  RIGHT: BN/BAM OPERATING MODEL
+   ================================================================ */
+const Section2 = ({ dark }) => {
+  const [tlHov, setTlHov] = useState(null);
+  const [personIdx, setPersonIdx] = useState(0);
+  const [bnIdx, setBnIdx] = useState(null);
+  var person=KEY_PERSONS[personIdx];
+
+  var eraColors={"Origins":"#94a3b8","Diversification":"#64748b","Infrastructure Focus":"#3b82f6","Transformation":"#2563eb","Scale":"#16a34a","Today":"#0d9488"};
+
+  return (
+    <div className="fade-in">
+      <div style={{marginBottom:28}}>
+        <div className="sec-badge">Part 2</div>
+        <h2 style={{fontSize:24,fontWeight:800,color:"var(--text-1)",marginBottom:8}}>BN &amp; BAM: Structure, Strategy, and People</h2>
+        <p style={{color:"var(--text-3)",fontSize:14,lineHeight:1.65,maxWidth:760}}>Understanding BAM requires understanding the Brookfield ecosystem — the holding company (BN), the asset management entity (BAM), and how 125 years of compounding culture shapes every investment decision.</p>
+      </div>
+
+      {/* Two-column: Timeline LEFT | BN/BAM operating model RIGHT */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24,marginBottom:34}}>
+        {/* LEFT — Timeline */}
+        <div>
+          <h3 style={{fontSize:15,fontWeight:700,color:"var(--text-1)",marginBottom:14}}>125 Years of Compounding</h3>
+          <div style={{position:"relative",paddingLeft:16}}>
+            <div style={{position:"absolute",left:24,top:0,bottom:0,width:2,background:"var(--border)"}}></div>
+            {TIMELINE.map(function(t,i){
+              var isH=tlHov===i;
+              return <div key={i} style={{display:"flex",gap:12,marginBottom:12,position:"relative"}} onMouseEnter={function(){setTlHov(i);}} onMouseLeave={function(){setTlHov(null);}}>
+                <div style={{width:14,height:14,borderRadius:"50%",background:t.color,border:"2px solid var(--bg-page)",flexShrink:0,marginTop:3,position:"relative",zIndex:1}}></div>
+                <div style={{background:isH?"var(--bg-inner)":"var(--bg-card)",border:"1px solid "+(isH?"var(--border-mid)":"var(--border)"),borderRadius:7,padding:"8px 12px",flex:1,transition:"all 0.2s",boxShadow:isH?"var(--shadow)":"var(--shadow-sm)"}}>
+                  <div style={{display:"flex",gap:10,alignItems:"baseline",marginBottom:2}}>
+                    <span style={{color:t.color,fontWeight:800,fontSize:11}}>{t.year}</span>
+                    <span style={{color:"var(--text-1)",fontWeight:700,fontSize:12}}>{t.event}</span>
+                    <span style={{fontSize:9,color:"var(--text-4)",background:"var(--bg-deep)",padding:"1px 5px",borderRadius:3,marginLeft:"auto",whiteSpace:"nowrap"}}>{t.era}</span>
+                  </div>
+                  {isH&&<p style={{color:"var(--text-3)",fontSize:11,lineHeight:1.6,marginTop:4}}>{t.detail}</p>}
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT — BN vs BAM operating model */}
+        <div>
+          <h3 style={{fontSize:15,fontWeight:700,color:"var(--text-1)",marginBottom:14}}>How BN &amp; BAM Work Together Today</h3>
+
+          {/* Core distinction box */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+            <div style={{background:"var(--accent-faint)",border:"1px solid var(--border)",borderRadius:8,padding:12,borderLeft:"3px solid #1e40af"}}>
+              <div style={{fontWeight:800,color:"#1e40af",fontSize:13,marginBottom:6}}>BN — Asset Heavy</div>
+              <p style={{color:"var(--text-2)",fontSize:11,lineHeight:1.6}}>Brookfield Corporation owns real assets on its balance sheet — equity stakes in power plants, infrastructure, real estate, and operating businesses. BN generates returns through asset appreciation, dividends, and asset sales. It takes risk with its own capital.</p>
+              <div style={{marginTop:8,fontSize:10,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>Revenue drivers</div>
+              <div style={{color:"#1e40af",fontSize:11,marginTop:3}}>Asset income · Capital gains · BAM dividends (73% share)</div>
+            </div>
+            <div style={{background:dark?"#0a1f0f":"#f0fdf4",border:"1px solid var(--border)",borderRadius:8,padding:12,borderLeft:"3px solid #15803d"}}>
+              <div style={{fontWeight:800,color:"#15803d",fontSize:13,marginBottom:6}}>BAM — Capital Light</div>
+              <p style={{color:"var(--text-2)",fontSize:11,lineHeight:1.6}}>Brookfield Asset Management earns fees for managing capital — it does not own assets on its balance sheet. BAM’s business is collecting management fees and carried interest from third-party LPs who invest alongside BN. Capital-light means high margins and no asset risk.</p>
+              <div style={{marginTop:8,fontSize:10,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>Revenue drivers</div>
+              <div style={{color:"#15803d",fontSize:11,marginTop:3}}>Management fees · Performance fees · Carried interest</div>
+            </div>
+          </div>
+
+          {/* The flywheel */}
+          <div className="card" style={{marginBottom:12,background:"var(--bg-inner)"}}>
+            <div style={{fontWeight:700,color:"var(--text-1)",fontSize:13,marginBottom:10}}>The Flywheel: How BN and BAM Amplify Each Other</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                ["1","BN owns real assets directly","Power plants, ports, malls, operating companies — $100B+ of direct equity. This gives BAM’s strategies credibility and proven track records."],
+                ["2","BAM raises LP capital alongside BN","When Infrastructure Fund VI raises $25B, BN co-invests $3-5B alongside $20B+ of third-party LP capital. BAM earns fees on the entire $25B — not just the LP portion."],
+                ["3","BAM charges fees → distributes to BN","BAM distributes ~90% of FRE as dividends. BN, as 73% owner, receives ~$2B+ per year in BAM dividends. This cash flow recycles back into BN’s balance sheet for new co-investments."],
+                ["4","Scale begets scale","The larger the funds, the better the deal access. The better the deal access, the stronger the track record. The stronger the track record, the larger the next fund. BN’s balance sheet is the proof point that attracts LP capital."],
+              ].map(function(it,i){
+                return <div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:i<3?"1px solid var(--border)":""}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",background:"var(--accent)",color:"#fff",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{it[0]}</div>
+                  <div><div style={{fontWeight:600,color:"var(--text-1)",fontSize:12}}>{it[1]}</div><div style={{color:"var(--text-3)",fontSize:11,marginTop:2,lineHeight:1.5}}>{it[2]}</div></div>
+                </div>;
+              })}
+            </div>
+          </div>
+
+          {/* BN's direct positions — click to expand */}
+          <div style={{fontWeight:700,color:"var(--text-1)",fontSize:13,marginBottom:8}}>BN’s Direct Asset Holdings (click to expand)</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {BN_HOLDINGS.map(function(h,i){
+              var isO=bnIdx===i;
+              return <div key={i} onClick={function(){setBnIdx(isO?null:i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isO?h.color:"var(--border)"),borderRadius:7,padding:"10px 12px",cursor:"pointer",transition:"all 0.2s",boxShadow:"var(--shadow-sm)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"space-between"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:16}}>{h.icon}</span>
+                    <span style={{fontWeight:700,color:"var(--text-1)",fontSize:13}}>{h.name}</span>
+                    <span style={{fontSize:10,color:h.color,background:h.color+"18",padding:"2px 7px",borderRadius:4,border:"1px solid "+h.color+"33"}}>BN stake: {h.bnStake}</span>
+                  </div>
+                  <span style={{color:"var(--text-4)",fontSize:13}}>{isO?"▲":"▼"}</span>
+                </div>
+                {isO&&<div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <div className="card-inner"><div style={{fontSize:10,color:"var(--text-4)",fontWeight:700,textTransform:"uppercase",marginBottom:4}}>What BN owns</div><p style={{color:"var(--text-2)",fontSize:11,lineHeight:1.5}}>{h.what}</p></div>
+                  <div className="card-inner" style={{borderLeft:"2px solid "+h.color}}><div style={{fontSize:10,color:h.color,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>How BAM earns fees</div><p style={{color:"var(--text-2)",fontSize:11,lineHeight:1.5}}>{h.howBAM}</p></div>
+                </div>}
+              </div>;
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Person tabs — full width below the two-column section */}
+      <div className="card" style={{marginBottom:0}}>
+        <h3 style={{fontSize:15,fontWeight:700,color:"var(--text-1)",marginBottom:14}}>Investment Philosophy: The People Who Built It</h3>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {KEY_PERSONS.map(function(p,i){
+            return <button key={i} onClick={function(){setPersonIdx(i);}} style={{padding:"7px 18px",borderRadius:6,border:"1px solid var(--border)",cursor:"pointer",fontWeight:700,fontSize:12,background:personIdx===i?p.color:"var(--bg-btn-inactive)",color:personIdx===i?"#fff":"var(--text-3)",transition:"all 0.2s"}}>{p.name}</button>;
+          })}
+        </div>
+        {person.roleNote&&<div style={{background:dark?"#052e16":"#f0fdf4",border:"1px solid #15803d",borderRadius:8,padding:12,marginBottom:14,borderLeft:"4px solid #15803d"}}>
+          <div style={{fontWeight:800,color:"#15803d",fontSize:11,textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>&#128204; CEO Role: BAM (Capital-Light Manager) — Not BN</div>
+          <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{person.roleNote}</p>
+        </div>}
+        <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:20}}>
+          <div>
+            <div style={{color:"var(--text-4)",fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Core Philosophy — per The Knowledge Project &amp; other interviews</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {person.philosophy.map(function(ph,i){
+                return <div key={i} style={{display:"flex",gap:10,padding:"8px",background:"var(--bg-inner)",borderRadius:6,border:"1px solid var(--border)"}}>
+                  <span style={{color:person.color,flexShrink:0}}>&#x2192;</span>
+                  <span style={{color:"var(--text-2)",fontSize:12,lineHeight:1.55}}>{ph}</span>
+                </div>;
+              })}
+            </div>
+          </div>
+          <div>
+            <div style={{color:"var(--text-4)",fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Legacy / Impact</div>
+            <div style={{background:"var(--bg-inner)",borderRadius:8,padding:14,border:"1px solid var(--border)"}}>
+              <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{person.legacy}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 3 — SEGMENTS + SUB-SEGMENTS
+   ================================================================ */
+const Section3 = ({ dark }) => {
+  const [segIdx, setSegIdx] = useState(0);
+  var seg=SEGMENT_DATA[segIdx];
+  var totalAUM=SEGMENT_DATA.reduce(function(a,d){return a+d.aum;},0);
+  var totalFBC=SEGMENT_DATA.reduce(function(a,d){return a+d.fbc;},0);
+
+  return (
+    <div className="fade-in">
+      <div style={{marginBottom:28}}>
+        <div className="sec-badge">Part 3</div>
+        <h2 style={{fontSize:24,fontWeight:800,color:"var(--text-1)",marginBottom:8}}>Five Segments — One Ecosystem</h2>
+        <p style={{color:"var(--text-3)",fontSize:14,lineHeight:1.65,maxWidth:760}}>BAM operates five distinct investment segments spanning $1.18T of AUM. They complement each other through cycles, share operational expertise, and present a unified franchise to the world’s largest capital allocators.</p>
+      </div>
+
+      {/* AUM/FBC bars */}
+      <div style={{marginBottom:24}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+          {["AUM ($B)","FBC ($B)"].map(function(label,li){
+            var maxVal=li===0?400:300;
+            return <div key={li}>
+              <div style={{fontSize:11,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{label} — Q4 2025 (Source: 10-K)</div>
+              {SEGMENT_DATA.map(function(s,i){
+                var val=li===0?s.aum:s.fbc,isA=segIdx===i;
+                return <div key={i} style={{marginBottom:8,cursor:"pointer"}} onClick={function(){setSegIdx(i);}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:12,color:isA?s.color:"var(--text-2)",fontWeight:isA?700:400}}>{s.icon} {s.name}</span><span style={{fontSize:12,color:"var(--text-1)",fontWeight:700}}>${val}B</span></div>
+                  <div style={{background:"var(--bg-deep)",borderRadius:4,height:9}}><div style={{width:(val/maxVal*100)+"%",height:"100%",background:s.color,borderRadius:4,opacity:isA?1:0.55,transition:"all 0.3s"}}></div></div>
+                </div>;
+              })}
+              <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}><span style={{fontSize:12,color:"#d97706",fontWeight:700}}>Total: ${li===0?totalAUM:totalFBC}B</span></div>
+            </div>;
+          })}
+        </div>
+      </div>
+
+      {/* Segment selector tabs */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+        {SEGMENT_DATA.map(function(s,i){
+          return <button key={i} onClick={function(){setSegIdx(i);}} style={{padding:"7px 14px",borderRadius:6,border:"1px solid "+(segIdx===i?s.color:"var(--border)"),cursor:"pointer",fontWeight:600,fontSize:12,background:segIdx===i?s.color:"var(--bg-btn-inactive)",color:segIdx===i?"#fff":"var(--text-3)",transition:"all 0.2s"}}>{s.icon} {s.name}</button>;
+        })}
+      </div>
+
+      {/* Segment detail card */}
+      <div style={{background:"var(--bg-card)",border:"1.5px solid "+seg.color+"44",borderRadius:12,padding:20,boxShadow:"var(--shadow)"}}>
+        {/* Header row */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:14,marginBottom:18}}>
+          <div>
+            <div style={{fontSize:22,fontWeight:800,color:seg.color,marginBottom:3}}>{seg.icon} {seg.name}</div>
+            <div style={{color:"var(--text-2)",fontSize:13,maxWidth:520,lineHeight:1.6}}>{seg.description}</div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {[["Total AUM","$"+seg.aum+"B",seg.color],["Fee-Bearing Capital","$"+seg.fbc+"B","#d97706"],["FBC / AUM",seg.fbc_pct+"%","#16a34a"],["Perpetual / Long-Dated",seg.perpetual_pct+"%","#7c3aed"]].map(function(s,i){
+              return <div key={i} className="stat-pill"><span style={{color:"var(--text-4)",fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>{s[0]}</span><span style={{color:s[2],fontWeight:800,fontSize:17}}>{s[1]}</span></div>;
+            })}
+          </div>
+        </div>
+
+        {/* Sub-strategy breakdown + 5-yr evolution — two columns */}
+        <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:20,marginBottom:16}}>
+          {/* Left: sub-strategy bars */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-3)",marginBottom:12}}>Sub-Strategy Breakdown (% of this segment)</div>
+            {seg.subs.map(function(s,i){
+              return <div key={i} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                  <span style={{fontSize:12,color:"var(--text-2)",fontWeight:500}}>{s.name}</span>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:11,color:"var(--text-3)"}}>{s.pct_aum}% of total AUM</span>
+                    <span style={{fontSize:13,fontWeight:700,color:s.color,minWidth:32,textAlign:"right"}}>{s.pct_seg}%</span>
+                  </div>
+                </div>
+                <div style={{background:"var(--bg-deep)",borderRadius:4,height:8}}>
+                  <div style={{width:s.pct_seg+"%",height:"100%",background:s.color,borderRadius:4,transition:"all 0.5s"}}></div>
+                </div>
+              </div>;
+            })}
+            <div style={{fontSize:10,color:"var(--text-4)",marginTop:6}}>Right column = approx. % of total firm AUM allocated to that sub-strategy</div>
+          </div>
+
+          {/* Right: 5-yr evolution */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-3)",marginBottom:8}}>5-Year Evolution</div>
+              <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{seg.five_year}</p>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-3)",marginBottom:8}}>Forward Strategy</div>
+              <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{seg.forward}</p>
+            </div>
+            <div style={{marginTop:4}}>
+              <span style={{background:"var(--bg-inner)",border:"1px solid "+seg.color+"44",padding:"5px 10px",borderRadius:5,fontSize:11,color:seg.color,fontWeight:600}}>Flagship: {seg.flagship}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Key Differentiator box */}
+        <div style={{background:"var(--accent-faint)",border:"1px solid var(--border)",borderLeft:"3px solid "+seg.color,borderRadius:6,padding:"10px 14px"}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:seg.color,marginBottom:6}}>Key Differentiator</div>
+          <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{seg.diff}</p>
+        </div>
+      </div>
+
+      {/* Cycle diversification */}
+      <div style={{marginTop:24}}>
+        <h3 style={{fontSize:15,fontWeight:700,color:"var(--text-1)",marginBottom:12}}>How Segments Complement Each Other Through Cycles</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10}}>
+          {[{scenario:"Rising Rate Environment",winners:["Credit (floating rates)","Infrastructure (inflation-linked)"],losers:["Real Estate (cap rate expansion)","PE (multiple compression)"],color:"#d97706"},{scenario:"Recessionary / Credit Stress",winners:["Oaktree Distressed Credit","Infrastructure (defensive)"],losers:["PE (revenue decline)","RE (vacancy risk)"],color:"#dc2626"},{scenario:"Energy Transition Acceleration",winners:["Renewable & Transition","Infrastructure (grid, pipelines)"],losers:["Minimal — broad tailwind"],color:"#16a34a"}].map(function(s,i){
+            return <div key={i} className="card" style={{borderTop:"2px solid "+s.color}}>
+              <div style={{fontWeight:700,color:"var(--text-1)",fontSize:13,marginBottom:10}}>{s.scenario}</div>
+              <div style={{marginBottom:8}}><div style={{fontSize:10,color:"#16a34a",fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>Outperforms</div>{s.winners.map(function(w,j){return <div key={j} style={{color:"#15803d",fontSize:12,padding:"1px 0"}}>&#x2191; {w}</div>;})}</div>
+              <div><div style={{fontSize:10,color:"#dc2626",fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>Headwinds</div>{s.losers.map(function(l,j){return <div key={j} style={{color:"#dc2626",fontSize:12,padding:"1px 0"}}>&#x2193; {l}</div>;})}</div>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 4 — PERPETUAL CAPITAL
+   ================================================================ */
+const Section4 = ({ dark }) => {
+  const [vehicleIdx, setVehicleIdx] = useState(null);
+  return (
+    <div className="fade-in">
+      <div style={{marginBottom:28}}>
+        <div className="sec-badge">Part 4</div>
+        <h2 style={{fontSize:24,fontWeight:800,color:"var(--text-1)",marginBottom:8}}>87% Perpetual &amp; Long-Dated Capital</h2>
+        <p style={{color:"var(--text-3)",fontSize:14,lineHeight:1.65,maxWidth:760}}>In 2018, only 28 cents of every dollar BAM managed was in permanent or long-dated vehicles. By Q4 2025, that figure is 87%. This transformed a transactional fundraising machine into a compounding asset base.</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:12,marginBottom:28}}>
+        {[{icon:"🔄",title:"No Redemption Cliff",desc:"87% of $603B FBC does not need to be re-raised every 3-5 years. Management fees are structurally recurring — not episodic. Fundamentally different from a traditional closed-end PE shop.",color:"#1d4ed8"},{icon:"📊",title:"Predictable Earnings Quality",desc:"Wall Street values recurring revenues at higher multiples than episodic ones. BAM’s P/E of 25-35x reflects the earnings quality premium of perpetual capital. A standard PE shop at the same AUM might trade at 12-15x.",color:"#15803d"},{icon:"🏗",title:"LP Alignment Deepens",desc:"Perpetual capital LPs reinvest distributions rather than exit. Relationships compound over decades. Long-standing LP relationships provide BAM with preferential access to next-fund commitments and co-investments.",color:"#6d28d9"}].map(function(c,i){
+          return <div key={i} className="card" style={{borderTop:"2px solid "+c.color}}><div style={{fontSize:22,marginBottom:10}}>{c.icon}</div><div style={{fontWeight:700,color:"var(--text-1)",fontSize:14,marginBottom:7}}>{c.title}</div><p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{c.desc}</p></div>;
+        })}
+      </div>
+      <div style={{marginBottom:28}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:4}}>The Journey: 28% to 87% Perpetual Capital (2018-2025)</h3>
+        <p style={{color:"var(--text-3)",fontSize:12,marginBottom:14,lineHeight:1.5}}>Hover over data points to see annotations. The Oaktree acquisition in 2019 was the single biggest catalyst — instantly adding ~$150B of perpetual credit AUM.</p>
+        <div className="card"><PerpChart dark={dark}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:10,marginTop:10}}>
+          {[{period:"2018-2019",label:"The Catalyst",desc:"Oaktree acquisition ($4.7B). Credit AUM triples. Perpetual% jumps 20 points in a single year.",color:"#6d28d9"},{period:"2020-2022",label:"Infrastructure Buildout",desc:"Insurance solutions launch. Evergreen fund vehicles for retail and semi-institutional LPs begin scaling.",color:"#2563eb"},{period:"2022-2025",label:"The Acceleration",desc:"Barclays partnership, Angel Oak, 60-strategy expansion. Every new strategy launched as long-dated or evergreen by design.",color:"#16a34a"}].map(function(p,i){
+            return <div key={i} className="card" style={{borderLeft:"3px solid "+p.color}}><div style={{color:p.color,fontSize:11,fontWeight:700,marginBottom:3}}>{p.period} — {p.label}</div><p style={{color:"var(--text-3)",fontSize:11,lineHeight:1.5}}>{p.desc}</p></div>;
+          })}
+        </div>
+      </div>
+      <div style={{marginBottom:28}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:14}}>Perpetual Capital by Segment — Q4 2025</h3>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <div>
+            {SEGMENT_DATA.map(function(s,i){
+              var pF=Math.round(s.fbc*s.perpetual_pct/100);
+              return <div key={i} style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:13,color:"var(--text-1)",fontWeight:600}}>{s.icon} {s.name}</span><span style={{fontSize:11,color:"var(--text-3)"}}>${pF}B / ${s.fbc}B ({s.perpetual_pct}%)</span></div>
+                <div style={{background:"var(--bg-deep)",borderRadius:4,height:10}}><div style={{width:s.perpetual_pct+"%",height:"100%",background:s.color,borderRadius:4,transition:"all 0.5s"}}></div></div>
+              </div>;
+            })}
+            <div style={{background:"var(--accent-faint)",border:"1px solid var(--border)",borderRadius:8,padding:12,marginTop:8}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--accent)",fontWeight:700,fontSize:14}}>Total FBC</span><span style={{color:"var(--accent)",fontWeight:800,fontSize:14}}>$603B</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}><span style={{color:"var(--text-3)",fontSize:12}}>Perpetual / Long-Dated (~87%)</span><span style={{color:"#16a34a",fontWeight:700,fontSize:13}}>~$525B</span></div>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {[{title:"Credit: The Perpetual Capital Engine",color:"#be123c",body:"Credit has the highest perpetual % (94%) and the highest FBC ($279B). Oaktree’s evergreen and insurance vehicles never redeem. Credit alone contributes ~$262B of BAM’s perpetual capital base — nearly half of the total $525B."},{title:"Infrastructure & Renewables: The Listed Foundation",color:"#1d4ed8",body:"BIP and BEP — the listed vehicles — are true perpetual capital. They never liquidate, they never stop paying fees. Together they contribute ~$135B of perpetual FBC from the listed channel alone."},{title:"Target: $1T FBC by 2027-2028",color:"#15803d",body:"Connor Teskey outlined a path to doubling FRE by 2029 at Investor Day Sept 2025. That requires FBC growing from $603B to ~$900-1,000B. The wealth management channel and insurance solutions platform are the primary growth vectors."}].map(function(c,i){
+              return <div key={i} className="card" style={{borderLeft:"3px solid "+c.color}}><div style={{fontWeight:700,color:c.color,marginBottom:5,fontSize:13}}>{c.title}</div><p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{c.body}</p></div>;
+            })}
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style={{fontSize:16,fontWeight:700,color:"var(--text-1)",marginBottom:4}}>Vehicle Innovation: How BAM Creates Perpetual Capital</h3>
+        <p style={{color:"var(--text-3)",fontSize:12,marginBottom:14,lineHeight:1.5}}>The shift from 28% to 87% perpetual was deliberate vehicle innovation — BAM engineered new fund structures that create long-duration fee streams.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(220px, 1fr))",gap:10}}>
+          {PERP_VEHICLES.map(function(v,i){
+            var isO=vehicleIdx===i;
+            return <div key={i} onClick={function(){setVehicleIdx(isO?null:i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isO?v.color:"var(--border)"),borderRadius:8,padding:14,cursor:"pointer",transition:"all 0.2s",boxShadow:isO?"var(--shadow)":"var(--shadow-sm)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={{width:9,height:9,borderRadius:"50%",background:v.color}}></div><div style={{background:v.color+"18",color:v.color,fontSize:12,fontWeight:800,padding:"2px 8px",borderRadius:5,border:"1px solid "+v.color+"44"}}>{v.pct_fbc}% of FBC</div></div>
+              <div style={{fontWeight:700,color:"var(--text-1)",fontSize:13,marginBottom:4}}>{v.type}</div>
+              <div style={{color:"var(--text-4)",fontSize:11}}>{v.examples}</div>
+              {isO&&<p style={{color:"var(--text-3)",fontSize:12,lineHeight:1.6,borderTop:"1px solid var(--border)",paddingTop:8,marginTop:8}}>{v.desc}</p>}
+            </div>;
+          })}
+        </div>
+        <div className="card" style={{marginTop:14,background:"var(--bg-inner)"}}>
+          <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:16,alignItems:"start"}}>
+            <div style={{textAlign:"center",padding:"12px 18px",background:"var(--bg-card)",borderRadius:8,border:"1px solid var(--border)",boxShadow:"var(--shadow-sm)"}}><div style={{fontSize:36,fontWeight:900,color:"var(--accent)"}}>87%</div><div style={{fontSize:11,color:"var(--text-4)",marginTop:2}}>Perpetual Capital</div><div style={{fontSize:10,color:"var(--text-4)"}}>Q4 2025</div></div>
+            <div><div style={{fontWeight:700,color:"var(--text-1)",fontSize:14,marginBottom:8}}>What 87% Perpetual Really Means for Shareholders</div><p style={{color:"var(--text-3)",fontSize:12,lineHeight:1.65}}>BAM collected $603B in fee-bearing capital as of Q4 2025. Of that, $525B sits in vehicles that will never be fully redeemed. This means BAM will earn management fees on this capital base indefinitely. It is not a fund manager dependent on re-raising capital every five years — it is a compounding, recurring-revenue asset base. At a blended management fee of ~0.8%, $525B of perpetual FBC generates ~$4.2B of structurally recurring annual fees before any performance earnings.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 5 — GLOSSARY
+   ================================================================ */
+const Section5 = ({ dark }) => {
+  const [activeTab, setActiveTab] = useState("abbrev");
+  const [expanded, setExpanded] = useState(null);
+
+  var stars=function(n){var s="";for(var i=0;i<5;i++){s+=i<n?"★":"☆";}return s;};
+
+  return (
+    <div className="fade-in">
+      <div style={{marginBottom:28}}>
+        <div className="sec-badge">Part 5</div>
+        <h2 style={{fontSize:24,fontWeight:800,color:"var(--text-1)",marginBottom:8}}>Glossary &amp; KPIs</h2>
+        <p style={{color:"var(--text-3)",fontSize:14,lineHeight:1.65,maxWidth:760}}>All abbreviations, terms, and KPIs specific to BAM — with current numbers, growth trajectory, and how closely management tracks each one.</p>
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:20}}>
+        {[["abbrev","Abbreviations"],["terms","Key Concepts"],["kpis","KPIs & Metrics"]].map(function(it){
+          var isA=activeTab===it[0];
+          return <button key={it[0]} onClick={function(){setActiveTab(it[0]);setExpanded(null);}} style={{padding:"8px 18px",borderRadius:7,border:"1px solid var(--border)",cursor:"pointer",fontWeight:600,fontSize:13,background:isA?"var(--accent)":"var(--bg-btn-inactive)",color:isA?"#fff":"var(--text-3)",transition:"all 0.2s"}}>{it[1]}</button>;
+        })}
+      </div>
+
+      {activeTab==="abbrev"&&(
+        <div>
+          <p style={{color:"var(--text-4)",fontSize:12,marginBottom:14}}>Click any abbreviation to see the full definition.</p>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))",gap:8}}>
+            {GLOSSARY_ABBREV.map(function(g,i){
+              var isE=expanded===i;
+              return <div key={i} onClick={function(){setExpanded(isE?null:i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isE?"var(--accent)":"var(--border)"),borderRadius:8,padding:"10px 14px",cursor:"pointer",transition:"all 0.2s",boxShadow:isE?"var(--shadow)":"var(--shadow-sm)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{display:"flex",alignItems:"baseline",gap:10}}>
+                    <span style={{fontWeight:900,color:"var(--accent)",fontSize:16,fontFamily:"monospace"}}>{g.term}</span>
+                    <span style={{color:"var(--text-2)",fontSize:12,fontWeight:600}}>{g.full}</span>
+                  </div>
+                  <span style={{color:"var(--text-4)",fontSize:13,marginLeft:8,flexShrink:0}}>{isE?"▲":"▼"}</span>
+                </div>
+                {isE&&<p style={{color:"var(--text-3)",fontSize:12,lineHeight:1.65,marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}}>{g.def}</p>}
+              </div>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab==="terms"&&(
+        <div>
+          <p style={{color:"var(--text-4)",fontSize:12,marginBottom:14}}>Core concepts specific to BAM’s business model and the alternatives industry.</p>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {GLOSSARY_TERMS.map(function(g,i){
+              var isE=expanded===("t"+i);
+              return <div key={i} onClick={function(){setExpanded(isE?null:"t"+i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isE?"var(--accent)":"var(--border)"),borderRadius:8,padding:"12px 16px",cursor:"pointer",transition:"all 0.2s",boxShadow:isE?"var(--shadow)":"var(--shadow-sm)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontWeight:700,color:"var(--text-1)",fontSize:14}}>{g.term}</span>
+                  <span style={{color:"var(--text-4)",fontSize:13}}>{isE?"▲":"▼"}</span>
+                </div>
+                {isE&&<p style={{color:"var(--text-2)",fontSize:13,lineHeight:1.7,marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>{g.def}</p>}
+                {!isE&&<p style={{color:"var(--text-4)",fontSize:12,marginTop:4}}>{g.def.substring(0,80)}...</p>}
+              </div>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab==="kpis"&&(
+        <div>
+          <p style={{color:"var(--text-4)",fontSize:12,marginBottom:14}}>Current numbers through Q4 2025 · Growth trajectory · Management attention rating (★ = how closely management focuses on it)</p>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {GLOSSARY_KPIS.map(function(g,i){
+              var isE=expanded===("k"+i);
+              return <div key={i} onClick={function(){setExpanded(isE?null:"k"+i);}} style={{background:"var(--bg-card)",border:"1px solid "+(isE?g.color:"var(--border)"),borderLeft:"4px solid "+g.color,borderRadius:8,padding:"14px 18px",cursor:"pointer",transition:"all 0.2s",boxShadow:isE?"var(--shadow)":"var(--shadow-sm)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                      <span style={{fontWeight:800,color:g.color,fontSize:15}}>{g.kpi}</span>
+                      <span style={{color:"#f59e0b",fontSize:13,letterSpacing:1}}>{stars(g.stars)}</span>
+                    </div>
+                    <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                      <div><span style={{fontSize:10,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>Current: </span><span style={{fontSize:12,color:"var(--text-1)",fontWeight:700}}>{g.current}</span></div>
+                      <div><span style={{fontSize:10,color:"var(--text-4)",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>Growth: </span><span style={{fontSize:12,color:"#16a34a",fontWeight:600}}>{g.growth}</span></div>
+                    </div>
+                  </div>
+                  <span style={{color:"var(--text-4)",fontSize:13,flexShrink:0}}>{isE?"▲":"▼"}</span>
+                </div>
+                {isE&&<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)"}}>
+                  <div style={{fontSize:10,color:"var(--text-4)",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Management Focus</div>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                    <span style={{color:"#f59e0b",fontSize:16,flexShrink:0}}>{stars(g.stars)}</span>
+                    <p style={{color:"var(--text-2)",fontSize:12,lineHeight:1.65}}>{g.watch}</p>
+                  </div>
+                </div>}
+              </div>;
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ================================================================
+   SECTION 6 — BUSINESS QUALITY SCORECARD
+   ================================================================ */
+const BAM_QUALITY = [
+  {id:0,label:"Pricing Power",score:2,verdict:"The honest weak point — structurally constrained by industry norms",color:"#1e40af",icon:"💰",
+   points:[
+     "The 2-and-20 structure is an industry convention, not a BAM-specific premium. LPs expect it — which means BAM cannot move materially above it without losing business.",
+     "Fee compression is real: large LPs are negotiating harder, building in-house capabilities, and pushing for lower management fees on mega-funds. BAM is not immune.",
+     "Volume growth (AUM from $603B to $1T+) is the real story, not price growth. BAM earns more by managing more — not by charging more per dollar. That is scale, not pricing power.",
+   ],
+   standout:"BAM’s moat, scale, and track record keep LPs in the relationship. But the reason isn’t that BAM’s price is worth it above all alternatives — it’s that the relationship and switching cost make leaving painful. That is stickiness, not pricing power in the truest sense. This is the framework’s honest finding on BAM."},
+  {id:1,label:"Supporting Pillars",score:4.5,verdict:"The strongest part of the business — checks out across all four",color:"#6d28d9",icon:"🏛",
+   subs:[
+     {name:"Economies of Scale",score:5,color:"#1e40af",note:"$1.18T AUM gives deal access, co-investment credibility, and a 300+ operating company network that makes every new asset cheaper to improve than it would be for any new entrant. The cost of deploying capital falls as the platform grows. No newcomer can replicate this starting from zero."},
+     {name:"Barriers to Entry",score:5,color:"#15803d",note:"125 years of LP relationships (sovereign wealth funds, pension funds globally), operational data from thousands of real assets, and a co-investing community that returns fund after fund. The data loop — real asset operations generate data → data improves underwriting → better returns deepen the community — is structurally very hard to replicate. Community and user experience as barriers to entry: BAM checks both."},
+     {name:"Network Effects",score:3,color:"#0d9488",note:"More LPs → larger funds → better deal access → stronger track record → more LPs. Data from 1,000+ portfolio companies feeds back into every new investment thesis. The network is real and data-driven — but the LP-facing benefit is mostly indirect (better returns, not a visibly smarter product). One notch below a pure consumer network effect, but still very strong."},
+     {name:"MOAT",score:5,color:"#b45309",note:"‘Brookfield’ is what institutional investors say when they mean real assets alternatives. After 125 years, the brand is the category. No competitor runs all five segments — infrastructure, renewables, real estate, private equity, credit — simultaneously at this scale. The brand has become the noun."},
+   ]},
+  {id:2,label:"People & Adaptability",score:4.5,verdict:"125 years of evolution is the evidence — not just the current team",color:"#0d9488",icon:"🧠",
+   points:[
+     "The evidence is in the history: Brazilian utilities operator → Canadian conglomerate → real assets platform → capital-light fee manager. Every transition was executed before the old model broke.",
+     "87% perpetual capital is itself a product of adaptability — BAM invented the structures (evergreen funds, listed platforms, insurance solutions) that made that possible. The product evolved with the LP base.",
+     "Flatt → Teskey: four-year planned handoff. Teskey ran Renewables to $143B before taking the BAM CEO seat. The culture carries the philosophy more than any single individual — that is the mark of a durable institution.",
+   ],
+   standout:"The 87% perpetual capital figure is the best single proof of adaptability in the entire scorecard. BAM understood what its LPs truly wanted (permanent capital relationships, not fund cycles) and built the vehicles to deliver it. That is the definition of a business that evolves ahead of disruption."},
+  {id:3,label:"Cash Generation",score:5,verdict:"Capital-light + fee-based = among the best cash profiles in finance",color:"#15803d",icon:"💵",
+   points:[
+     "$867M FRE in Q4 2025 alone — ~$3.2B annualized. BAM distributes ~90% of FRE as dividends. The cash is real and recurring.",
+     "Capital-light model: BAM does not own assets. It manages them for others. No heavy reinvestment required — fees flow nearly directly to the bottom line at ~55–60% FRE margins.",
+     "No external funding needed to run operations. The business is self-sustaining at scale. Revenue is largely locked in by long-duration fund terms — visible years in advance.",
+   ],
+   standout:"BAM generates $3B+ per year in free cash without owning a single asset on its balance sheet. It needs no capital markets access to keep running. That combination — capital-light, recurring, high-margin, self-funding — is genuinely rare in financial services."},
+  {id:4,label:"Customer Stickiness",score:3,verdict:"Mostly structural, not earned — returns are the real dependency",color:"#b45309",icon:"🔒",
+   points:[
+     "87% perpetual capital creates structural stickiness — most LPs contractually cannot redeem. But lock-in is not the same as loyalty. The reason behind the stickiness matters.",
+     "LP retention is deeply tied to returns performance. A sustained period of underperformance would test re-up rates significantly. The stickiness is contingent, not unconditional.",
+     "Real estate post-COVID is the evidence: friction with office LPs showed that when BAM’s product underdelivered, stickiness eroded. The vehicle had the lock-in, but not the love.",
+   ],
+   standout:"The perpetual capital base protects BAM from short-term LP exits — but it also means the genuine test of stickiness (do LPs choose to re-invest?) is deferred. The wealth management channel is the place to watch: those clients can leave easily, and if they stay, it means the product is genuinely loved. That number is still small relative to the institutional base."},
+];
+
+const RadarChart = ({ scores, colors, labels }) => {
+  var cx=120, cy=110, r=80, n=scores.length;
+  var pts = scores.map(function(s,i){
+    var a=(i*(2*Math.PI/n))-(Math.PI/2);
+    var sr=(s/5)*r;
+    return {x:cx+sr*Math.cos(a),y:cy+sr*Math.sin(a),lx:cx+(r+22)*Math.cos(a),ly:cy+(r+22)*Math.sin(a)};
+  });
+  var web=[1,2,3,4,5].map(function(ring){
+    return Array.from({length:n},function(_,i){
+      var a=(i*(2*Math.PI/n))-(Math.PI/2);
+      return (cx+(ring/5)*r*Math.cos(a))+","+(cy+(ring/5)*r*Math.sin(a));
+    }).join(" ");
+  });
+  var shape=pts.map(function(p){return p.x+","+p.y;}).join(" ");
+  return (
+    <svg viewBox="0 0 240 220" style={{width:220,height:200,display:"block",margin:"0 auto"}}>
+      {web.map(function(w,i){return <polygon key={i} points={w} fill="none" stroke="var(--border)" strokeWidth={i===4?1.5:0.7}/>;}) }
+      {Array.from({length:n},function(_,i){
+        var a=(i*(2*Math.PI/n))-(Math.PI/2);
+        return <line key={i} x1={cx} y1={cy} x2={cx+r*Math.cos(a)} y2={cy+r*Math.sin(a)} stroke="var(--border)" strokeWidth={0.7}/>;
+      })}
+      <polygon points={shape} fill="var(--accent)" fillOpacity={0.15} stroke="var(--accent)" strokeWidth={2}/>
+      {pts.map(function(p,i){return <circle key={i} cx={p.x} cy={p.y} r={4} fill={colors[i]}/>;}) }
+      {pts.map(function(p,i){
+        var a=(i*(2*Math.PI/n))-(Math.PI/2);
+        var anchor=Math.cos(a)>0.1?"start":Math.cos(a)<-0.1?"end":"middle";
+        return <text key={i} x={p.lx} y={p.ly+(Math.sin(a)>0.3?4:-4)} textAnchor={anchor} fontSize={8.5} fontWeight={700} fill={colors[i]}>{labels[i]}</text>;
+      })}
+      <text x={cx} y={cy+3} textAnchor="middle" fontSize={8} fill="var(--text-4)">BAM</text>
+    </svg>
+  );
+};
+
+const WeightEditor = ({ weights, setWeights, qualities }) => {
+  const [weOpen, setWeOpen] = useState(false);
+  var total = weights.reduce(function(a,b){return a+b;},0);
+  var valid = total === 100;
+  var handleWChange = function(idx, val) {
+    var v = parseInt(val, 10);
+    if (isNaN(v) || v < 0) v = 0;
+    if (v > 100) v = 100;
+    setWeights(function(prev){var next=prev.slice();next[idx]=v;return next;});
+  };
+  var normalize = function() {
+    var tot = weights.reduce(function(a,b){return a+b;},0);
+    if (tot === 0) return;
+    var norm = weights.map(function(w){return Math.round(w/tot*100);});
+    var diff = 100 - norm.reduce(function(a,b){return a+b;},0);
+    norm[0] = norm[0] + diff;
+    setWeights(norm);
+  };
+  var equalW = function() {
+    var n = weights.length;
+    var eq = Math.floor(100/n);
+    var rem = 100 - eq*n;
+    setWeights(weights.map(function(_,j){return eq+(j===0?rem:0);}));
+  };
+  return (
+    <div>
+      <div onClick={function(){setWeOpen(!weOpen);}} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"9px 14px",background:"var(--bg-deep)",border:"1px solid var(--border)",borderRadius:weOpen?"8px 8px 0 0":"8px",userSelect:"none"}}>
+        <span style={{fontSize:13}}>⚖</span>
+        <span style={{fontWeight:700,color:"var(--text-2)",fontSize:13}}>Adjust Weights</span>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,fontWeight:700,color:valid?"#16a34a":"#ef4444"}}>Total: {total}%</span>
+          <span style={{color:"var(--text-4)",fontSize:12}}>{weOpen?"▲":"▼"}</span>
+        </div>
+      </div>
+      {weOpen&&(
+        <div style={{padding:"12px 14px",background:"var(--bg-inner)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 8px 8px"}}>
+          {qualities.map(function(q,i){
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:i<qualities.length-1?9:0}}>
+                <span style={{fontSize:16,flexShrink:0}}>{q.icon}</span>
+                <span style={{fontSize:11,fontWeight:700,color:q.color,width:90,flexShrink:0,lineHeight:1.3}}>{q.label}</span>
+                <div style={{flex:1,height:5,background:"var(--border)",borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:Math.min(weights[i],100)+"%",background:q.color,borderRadius:3,transition:"width 0.2s"}}/>
+                </div>
+                <input type="number" min="0" max="100" value={weights[i]}
+                  onChange={function(e){handleWChange(i,e.target.value);}}
+                  style={{width:50,textAlign:"center",padding:"3px 6px",border:"1px solid var(--border)",borderRadius:5,background:"var(--bg-card)",color:"var(--text-1)",fontSize:12,fontWeight:700,fontFamily:"inherit",outline:"none"}}/>
+                <span style={{fontSize:11,color:"var(--text-4)",flexShrink:0}}>%</span>
+              </div>
+            );
+          })}
+          {!valid&&<p style={{fontSize:11,color:"#ef4444",marginTop:8}}>{total<100?"Sum is "+total+"% — add "+(100-total)+"% more":"Sum is "+total+"% — reduce by "+(total-100)+"%"}</p>}
+          <div style={{display:"flex",gap:7,marginTop:10}}>
+            <button onClick={normalize} style={{padding:"4px 10px",borderRadius:5,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-2)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Normalize to 100%</button>
+            <button onClick={equalW} style={{padding:"4px 10px",borderRadius:5,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-2)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Equal weights</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Section6 = ({ dark }) => {
+  const [open, setOpen] = useState(null);
+  const [subOpen, setSubOpen] = useState(null);
+  const [weights, setWeights] = useState([45,20,15,12,8]);
+  var q = BAM_QUALITY;
+  var scores = q.map(function(x){return x.score;});
+  var colors = q.map(function(x){return x.color;});
+  var labels = q.map(function(x){return x.label.split(" ")[0];});
+  var totalW = weights.reduce(function(a,b){return a+b;},0);
+  var weightedSum = 0;
+  scores.forEach(function(s,i){weightedSum += s*weights[i];});
+  var overallAvg = totalW>0?(weightedSum/totalW).toFixed(1):"0.0";
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* header strip */}
+      <div className="card" style={{display:"flex",alignItems:"center",gap:20,padding:"12px 18px"}}>
+        <RadarChart scores={scores} colors={colors} labels={labels}/>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,color:"var(--text-4)",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Overall Quality Score</div>
+          <div style={{fontSize:42,fontWeight:900,color:"var(--accent)",lineHeight:1}}>{overallAvg}<span style={{fontSize:18,color:"var(--text-4)"}}>/5</span></div>
+          <div style={{fontSize:12,color:"var(--text-2)",marginTop:6,lineHeight:1.6}}>Evaluated against a personal framework: Pricing Power as the master signal, supported by four structural pillars, people &amp; adaptability, cash generation, and customer stickiness.</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
+            {q.map(function(item,i){
+              var filled=Math.round(item.score);
+              return <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:"var(--bg-inner)",border:"1px solid var(--border)",borderRadius:6,padding:"4px 8px"}}>
+                <span style={{fontSize:13}}>{item.icon}</span>
+                <span style={{fontSize:10,fontWeight:700,color:item.color}}>{item.label.split(" ")[0]}</span>
+                <div style={{display:"flex",gap:2}}>
+                  {[1,2,3,4,5].map(function(d){return <div key={d} style={{width:6,height:6,borderRadius:"50%",background:d<=filled?item.color:"var(--border)"}}/>;}) }
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* weight editor */}
+      <WeightEditor weights={weights} setWeights={setWeights} qualities={q}/>
+
+      {/* quality cards */}
+      {q.map(function(item,i){
+        var isOpen=open===i;
+        return (
+          <div key={i} style={{background:"var(--bg-card)",border:"1px solid "+(isOpen?item.color:"var(--border)"),borderRadius:8,overflow:"hidden",boxShadow:"var(--shadow-sm)",transition:"border-color 0.2s"}}>
+            {/* header row */}
+            <div onClick={function(){setOpen(isOpen?null:i);setSubOpen(null);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer"}}>
+              <span style={{fontSize:20}}>{item.icon}</span>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,color:"var(--text-1)",fontSize:14}}>{item.label}</div>
+                <div style={{fontSize:11,color:"var(--text-3)",marginTop:1}}>{item.verdict}</div>
+              </div>
+              <div style={{display:"flex",gap:3,marginRight:8}}>
+                {[1,2,3,4,5].map(function(d){
+                  var filled=d<=Math.floor(item.score);
+                  var half=!filled&&d<=item.score+0.5&&item.score%1!==0;
+                  return <div key={d} style={{width:10,height:10,borderRadius:"50%",background:filled?item.color:half?"linear-gradient(90deg,"+item.color+" 50%,var(--border) 50%)":"var(--border)",border:"1px solid "+(filled||half?item.color:"var(--border-mid)")}}/>;
+                })}
+              </div>
+              <span style={{color:"var(--text-4)",fontSize:13,flexShrink:0}}>{isOpen?"▲":"▼"}</span>
+            </div>
+
+            {/* expanded body */}
+            {isOpen&&<div style={{borderTop:"1px solid var(--border)",padding:"14px 16px",background:"var(--bg-inner)"}}>
+              {/* supporting pillars: show sub-cards */}
+              {item.subs?(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {item.subs.map(function(sub,j){
+                    var isS=subOpen===j;
+                    return <div key={j} onClick={function(e){e.stopPropagation();setSubOpen(isS?null:j);}} style={{background:"var(--bg-card)",border:"1px solid "+(isS?sub.color:"var(--border)"),borderRadius:7,padding:"10px 13px",cursor:"pointer",transition:"border-color 0.2s"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:sub.color,flexShrink:0}}/>
+                        <span style={{fontWeight:700,color:"var(--text-1)",fontSize:12,flex:1}}>{sub.name}</span>
+                        <div style={{display:"flex",gap:2,marginRight:6}}>
+                          {[1,2,3,4,5].map(function(d){return <div key={d} style={{width:7,height:7,borderRadius:"50%",background:d<=sub.score?sub.color:"var(--border)"}}/>;}) }
+                        </div>
+                        <span style={{color:"var(--text-4)",fontSize:11}}>{isS?"▲":"▼"}</span>
+                      </div>
+                      {isS&&<p style={{color:"var(--text-2)",fontSize:11,lineHeight:1.65,marginTop:8,paddingTop:8,borderTop:"1px solid var(--border)"}}>{sub.note}</p>}
+                    </div>;
+                  })}
+                </div>
+              ):(
+                <div>
+                  <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:12}}>
+                    {item.points.map(function(pt,j){
+                      return <div key={j} style={{display:"flex",gap:10,padding:"8px 10px",background:"var(--bg-card)",borderRadius:6,border:"1px solid var(--border)"}}>
+                        <span style={{color:item.color,fontWeight:900,flexShrink:0,fontSize:12}}>→</span>
+                        <span style={{color:"var(--text-2)",fontSize:12,lineHeight:1.55}}>{pt}</span>
+                      </div>;
+                    })}
+                  </div>
+                  <div style={{background:item.color+"14",border:"1px solid "+item.color+"44",borderLeft:"3px solid "+item.color,borderRadius:6,padding:"10px 12px"}}>
+                    <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:0.8,color:item.color,marginBottom:4}}>Standout</div>
+                    <p style={{color:"var(--text-1)",fontSize:12,lineHeight:1.6,fontWeight:500}}>{item.standout}</p>
+                  </div>
+                </div>
+              )}
+            </div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ================================================================
+   MAIN APP
+   ================================================================ */
+const TABS = ["01 · Scale & Model","02 · BN / BAM Structure","03 · Five Segments","04 · Perpetual Capital","05 · Glossary & KPIs","06 · Business Quality"];
+
+const App = () => {
+  const [tab, setTab] = useState(0);
+  const [dark, setDark] = useState(false);
+  useEffect(function(){if(dark){document.body.classList.add("dark");}else{document.body.classList.remove("dark");}}, [dark]);
+  var sections=[<Section1 dark={dark}/>,<Section2 dark={dark}/>,<Section3 dark={dark}/>,<Section4 dark={dark}/>,<Section5 dark={dark}/>,<Section6 dark={dark}/>];
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:"var(--bg-header)",borderBottom:"1px solid var(--border)",padding:"14px 28px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12,boxShadow:"var(--shadow-sm)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:36,height:36,background:"#1e40af",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#fff",fontSize:13}}>BAM</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:16,color:"var(--text-1)"}}>Brookfield Asset Management</div>
+            <div style={{fontSize:11,color:"var(--text-4)"}}>Business Model Dashboard &nbsp;·&nbsp; Data through Q4 2025 &nbsp;·&nbsp; Sources: 10-K, Press Release, Shareholder Letter, IR Day 2025</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:8}}>
+            {[["$1.18T","Total AUM","#1e40af"],["$603B","Fee-Bearing Cap","#d97706"],["$867M","Q4 FRE","#16a34a"],["87%","Perpetual","#6d28d9"]].map(function(it,i){
+              return <div key={i} style={{textAlign:"center",background:"var(--bg-inner)",border:"1px solid var(--border)",borderRadius:7,padding:"5px 10px",boxShadow:"var(--shadow-sm)"}}><div style={{fontSize:14,fontWeight:800,color:it[2]}}>{it[0]}</div><div style={{fontSize:9,color:"var(--text-4)",fontWeight:500,textTransform:"uppercase",letterSpacing:0.5}}>{it[1]}</div></div>;
+            })}
+          </div>
+          <button className="toggle-btn" onClick={function(){setDark(!dark);}}><span style={{fontSize:14}}>{dark?"☀️":"🌙"}</span>{dark?"Light mode":"Dark mode"}</button>
+        </div>
+      </div>
+      {/* Tabs */}
+      <div style={{background:"var(--bg-tabs)",borderBottom:"1px solid var(--border)",display:"flex",gap:0,padding:"0 20px",overflowX:"auto"}}>
+        {TABS.map(function(t,i){
+          var isA=tab===i;
+          return <button key={i} onClick={function(){setTab(i);}} style={{padding:"13px 18px",border:"none",background:"transparent",cursor:"pointer",fontWeight:isA?700:500,fontSize:12,color:isA?"var(--accent)":"var(--text-3)",borderBottom:isA?"2px solid var(--accent)":"2px solid transparent",transition:"all 0.2s",whiteSpace:"nowrap"}}>{t}</button>;
+        })}
+      </div>
+      {/* Content */}
+      <div style={{flex:1,padding:"28px",maxWidth:1240,margin:"0 auto",width:"100%"}}>
+        {sections[tab]}
+      </div>
+      {/* Footer */}
+      <div style={{background:"var(--bg-header)",borderTop:"1px solid var(--border)",padding:"10px 28px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+        <span style={{fontSize:11,color:"var(--text-4)"}}>Sources: BAM 10-K Q4 2025 · Q4 2025 Press Release · Q4 2025 Shareholder Letter · IR Day September 2025 · Q4 2025 Earnings Transcript · All figures USD</span>
+        <span style={{fontSize:11,color:"var(--text-4)"}}>For informational purposes only · Not investment advice</span>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

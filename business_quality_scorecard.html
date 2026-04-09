@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Business Quality Scorecard</title>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  --bg-page:#f0f4f8;--bg-card:#ffffff;--bg-inner:#f8fafc;--bg-deep:#f1f5f9;
+  --bg-btn:#e2e8f0;--border:#e2e8f0;--border-mid:#cbd5e1;
+  --text-1:#0f172a;--text-2:#334155;--text-3:#64748b;--text-4:#94a3b8;
+  --accent:#1e40af;--accent-faint:#eff6ff;
+  --shadow:0 4px 16px rgba(0,0,0,0.08);--shadow-sm:0 1px 4px rgba(0,0,0,0.06);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg-page);color:var(--text-1);min-height:100vh;
+}
+body.dark{
+  --bg-page:#0f172a;--bg-card:#111827;--bg-inner:#1e293b;--bg-deep:#162032;
+  --bg-btn:#1e293b;--border:#1e293b;--border-mid:#334155;
+  --text-1:#f1f5f9;--text-2:#cbd5e1;--text-3:#94a3b8;--text-4:#475569;
+  --accent:#3b82f6;--accent-faint:#0f172a;
+  --shadow:0 4px 20px rgba(0,0,0,0.4);--shadow-sm:0 1px 6px rgba(0,0,0,0.3);
+}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:var(--shadow-sm);}
+textarea{background:var(--bg-inner);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:12px;font-family:inherit;padding:8px 10px;resize:vertical;width:100%;line-height:1.6;outline:none;transition:border-color 0.15s;}
+textarea:focus{border-color:var(--accent);}
+input[type="text"]{background:var(--bg-inner);border:1px solid var(--border);border-radius:7px;color:var(--text-1);font-size:17px;font-weight:700;padding:9px 13px;outline:none;width:100%;font-family:inherit;transition:border-color 0.15s;}
+input[type="text"]:focus{border-color:var(--accent);}
+button{font-family:inherit;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const SCORE_LABELS = ["","Absent","Developing","Average","Strong","Exceptional"];
+
+const QUALITIES = [
+  {id:"pricing",title:"Pricing Power",subtitle:"The Master Signal",weight:1.5,color:"#1e40af",icon:"💰",
+   description:"The gap between perceived value and price paid. A business with pricing power can raise prices and clients don’t leave, don’t look for substitutes, and don’t renegotiate. Low churn from genuine value is the proof.",
+   questions:[
+     "Can the business raise prices without meaningful customer loss?",
+     "Do customers visibly receive far more value than what they pay?",
+     "Is churn low even when prices increase?",
+     "Are customers staying because they love the product — not because they’re trapped?",
+   ]},
+  {id:"pillars",title:"Supporting Pillars",subtitle:"Four mechanisms that build and protect pricing power",weight:1.0,color:"#6d28d9",icon:"🏛",
+   description:"Economies of scale, barriers to entry, network effects, and moat — each an independent mechanism that feeds into and strengthens pricing power over time. They are often interconnected.",
+   subs:[
+     {id:"scale",title:"Economies of Scale",color:"#1e40af",
+      questions:[
+        "Does cost per unit decrease as the business grows?",
+        "Does size create a cost advantage competitors cannot easily close?",
+        "Is scale appropriate to the competitive landscape — not just absolute size?",
+      ]},
+     {id:"barriers",title:"Barriers to Entry",color:"#15803d",
+      questions:[
+        "What would it take for a new competitor to replicate this from scratch?",
+        "Does the business have a community + data loop that compounds over time?",
+        "Are the barriers built by the company, or granted by law and regulation?",
+      ]},
+     {id:"network",title:"Network Effects",color:"#0d9488",
+      questions:[
+        "Does your experience improve when someone else uses the product?",
+        "Is the network data-driven — does more usage make the product smarter?",
+        "Is the network growing, plateauing, or showing early signs of fragility?",
+      ]},
+     {id:"moat",title:"MOAT",color:"#b45309",
+      questions:[
+        "Has the brand become the default name for its category?",
+        "Do customers choose this brand without actively comparing alternatives?",
+        "Is the moat cultural (brand = language) or only contractual?",
+      ]},
+   ]},
+  {id:"people",title:"People & Adaptability",subtitle:"The human engine — often underestimated",weight:1.0,color:"#0d9488",icon:"🧠",
+   description:"The quality of the people behind the business and their ability to evolve. Commitment to decisions, willingness to pivot when evidence demands it. Understanding deeply what the business truly sells.",
+   questions:[
+     "Do leaders show commitment to decisions while pivoting when evidence demands it?",
+     "Does the business understand what it truly sells deeply enough to evolve ahead of disruption?",
+     "Is management ahead of change, or reacting to it?",
+     "Does the team demonstrate conviction paired with intellectual honesty?",
+   ]},
+  {id:"cash",title:"Cash Generation",subtitle:"The proof that quality is real",weight:1.0,color:"#15803d",icon:"💵",
+   description:"The business generates free cash flow, or is on a clear and visible path to doing so. Cash generation is the proof that business quality is real — not just narrative.",
+   questions:[
+     "Does the business generate free cash flow today, or have a clear path to it?",
+     "Are margins expanding or contracting over time?",
+     "Is cash generation structural (business model) or cyclical (timing)?",
+     "Is free cash flow growing consistently year over year?",
+   ]},
+  {id:"stickiness",title:"Customer Stickiness",subtitle:"Why customers stay — and whether that matters",weight:1.0,color:"#b45309",icon:"🔒",
+   description:"Both love and lock-in produce retention, but they are not equal. Unhappy trapped customers are a disruption waiting to happen. Happy clients extend the moat and eliminate the incentive to look for alternatives.",
+   questions:[
+     "Do customers stay because they love the product, or because they are trapped?",
+     "What would it realistically take for a customer to leave today?",
+     "Are unhappy customers creating a disruption risk from within the base?",
+     "Is the customer relationship strengthening or weakening over time?",
+   ]},
+];
+
+/* ---- Radar Chart ---- */
+const RadarChart = ({ scores, colors, labels }) => {
+  var cx=130,cy=115,r=82,n=5;
+  var angDeg=[-90,-18,54,126,198];
+  var toRad=function(d){return d*Math.PI/180;};
+  var vertex=function(s,i){
+    var a=toRad(angDeg[i]);var sr=(Math.max(s,0)/5)*r;
+    return {x:cx+sr*Math.cos(a),y:cy+sr*Math.sin(a)};
+  };
+  var rings=[1,2,3,4,5].map(function(ring){
+    return angDeg.map(function(deg){
+      var a=toRad(deg);return (cx+(ring/5)*r*Math.cos(a))+","+(cy+(ring/5)*r*Math.sin(a));
+    }).join(" ");
+  });
+  var hasScore=scores.some(function(s){return s>0;});
+  var shape=scores.map(function(s,i){var v=vertex(s,i);return v.x+","+v.y;}).join(" ");
+  return (
+    <svg viewBox="0 0 260 230" style={{width:"100%",maxWidth:230,display:"block",margin:"0 auto"}}>
+      {rings.map(function(pts,i){return <polygon key={i} points={pts} fill="none" stroke="var(--border)" strokeWidth={i===4?1.5:0.6}/>;}) }
+      {angDeg.map(function(deg,i){
+        var a=toRad(deg);
+        return <line key={i} x1={cx} y1={cy} x2={cx+r*Math.cos(a)} y2={cy+r*Math.sin(a)} stroke="var(--border)" strokeWidth={0.6}/>;
+      })}
+      {hasScore&&<polygon points={shape} fill="var(--accent)" fillOpacity={0.15} stroke="var(--accent)" strokeWidth={2}/>}
+      {scores.map(function(s,i){
+        if(s===0)return null;
+        var v=vertex(s,i);return <circle key={i} cx={v.x} cy={v.y} r={4.5} fill={colors[i]}/>;
+      })}
+      {labels.map(function(label,i){
+        var a=toRad(angDeg[i]);
+        var lx=cx+(r+26)*Math.cos(a);var ly=cy+(r+26)*Math.sin(a);
+        var anchor=Math.cos(a)>0.1?"start":Math.cos(a)<-0.1?"end":"middle";
+        var dy=Math.sin(a)>0.2?5:Math.sin(a)<-0.2?-4:3;
+        return <text key={i} x={lx} y={ly+dy} textAnchor={anchor} fontSize={8.5} fontWeight={700} fill={colors[i]} style={{fontFamily:"sans-serif"}}>{label}</text>;
+      })}
+      <circle cx={cx} cy={cy} r={3} fill="var(--text-4)"/>
+    </svg>
+  );
+};
+
+/* ---- Score Selector ---- */
+const ScoreSelector = ({ value, color, onChange }) => {
+  return (
+    <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+      {[1,2,3,4,5].map(function(d){
+        var active=value===d;
+        return (
+          <div key={d} onClick={function(){onChange(value===d?0:d);}}
+            style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",padding:"9px 12px",borderRadius:7,background:active?color+"18":"var(--bg-card)",border:"1px solid "+(active?color:"var(--border)"),minWidth:58,transition:"all 0.15s"}}>
+            <div style={{width:14,height:14,borderRadius:"50%",background:active?color:"var(--border)",border:"2px solid "+(active?color:"var(--border-mid)"),transition:"all 0.15s"}}/>
+            <span style={{fontSize:9,fontWeight:700,color:active?color:"var(--text-4)",textAlign:"center",lineHeight:1.3}}>{d}<br/>{SCORE_LABELS[d]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ---- Mini dots (header) ---- */
+const MiniDots = ({ value, color, size }) => {
+  var s=size||11;
+  return (
+    <div style={{display:"flex",gap:3}}>
+      {[1,2,3,4,5].map(function(d){
+        return <div key={d} style={{width:s,height:s,borderRadius:"50%",background:d<=Math.round(value)&&value>0?color:"var(--border)",border:"1.5px solid "+(d<=Math.round(value)&&value>0?color:"var(--border-mid)")}}/>;
+      })}
+    </div>
+  );
+};
+
+/* ---- Question List ---- */
+const Questions = ({ items, color }) => (
+  <div>
+    {items.map(function(q,i){
+      return (
+        <div key={i} style={{display:"flex",gap:9,padding:"7px 0",borderBottom:i<items.length-1?"1px solid var(--border)":""}}>
+          <span style={{color:color,fontWeight:900,flexShrink:0,fontSize:12}}>→</span>
+          <span style={{color:"var(--text-2)",fontSize:12,lineHeight:1.6}}>{q}</span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+/* ---- Weight Editor ---- */
+const WeightEditor = ({ weights, setWeights, qualities }) => {
+  const [weOpen, setWeOpen] = useState(false);
+  var total = weights.reduce(function(a,b){return a+b;},0);
+  var valid = total === 100;
+  var handleWChange = function(idx, val) {
+    var v = parseInt(val, 10);
+    if (isNaN(v) || v < 0) v = 0;
+    if (v > 100) v = 100;
+    setWeights(function(prev){var next=prev.slice();next[idx]=v;return next;});
+  };
+  var normalize = function() {
+    var tot = weights.reduce(function(a,b){return a+b;},0);
+    if (tot === 0) return;
+    var norm = weights.map(function(w){return Math.round(w/tot*100);});
+    var diff = 100 - norm.reduce(function(a,b){return a+b;},0);
+    norm[0] = norm[0] + diff;
+    setWeights(norm);
+  };
+  var equalW = function() {
+    var n = weights.length;
+    var eq = Math.floor(100/n);
+    var rem = 100 - eq*n;
+    setWeights(weights.map(function(_,j){return eq+(j===0?rem:0);}));
+  };
+  return (
+    <div style={{marginBottom:14}}>
+      <div onClick={function(){setWeOpen(!weOpen);}} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"9px 14px",background:"var(--bg-deep)",border:"1px solid var(--border)",borderRadius:weOpen?"8px 8px 0 0":"8px",userSelect:"none"}}>
+        <span style={{fontSize:13}}>⚖</span>
+        <span style={{fontWeight:700,color:"var(--text-2)",fontSize:13}}>Adjust Weights</span>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,fontWeight:700,color:valid?"#16a34a":"#ef4444"}}>Total: {total}%</span>
+          <span style={{color:"var(--text-4)",fontSize:12}}>{weOpen?"▲":"▼"}</span>
+        </div>
+      </div>
+      {weOpen&&(
+        <div style={{padding:"12px 14px",background:"var(--bg-inner)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 8px 8px"}}>
+          {qualities.map(function(q,i){
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:i<qualities.length-1?9:0}}>
+                <span style={{fontSize:16,flexShrink:0}}>{q.icon}</span>
+                <span style={{fontSize:11,fontWeight:700,color:q.color,width:90,flexShrink:0,lineHeight:1.3}}>{q.title}</span>
+                <div style={{flex:1,height:5,background:"var(--border)",borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:Math.min(weights[i],100)+"%",background:q.color,borderRadius:3,transition:"width 0.2s"}}/>
+                </div>
+                <input type="number" min="0" max="100" value={weights[i]}
+                  onChange={function(e){handleWChange(i,e.target.value);}}
+                  style={{width:50,textAlign:"center",padding:"3px 6px",border:"1px solid var(--border)",borderRadius:5,background:"var(--bg-card)",color:"var(--text-1)",fontSize:12,fontWeight:700,fontFamily:"inherit",outline:"none"}}/>
+                <span style={{fontSize:11,color:"var(--text-4)",flexShrink:0}}>%</span>
+              </div>
+            );
+          })}
+          {!valid&&<p style={{fontSize:11,color:"#ef4444",marginTop:8}}>{total<100?"Sum is "+total+"% — add "+(100-total)+"% more":"Sum is "+total+"% — reduce by "+(total-100)+"%"}</p>}
+          <div style={{display:"flex",gap:7,marginTop:10}}>
+            <button onClick={normalize} style={{padding:"4px 10px",borderRadius:5,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-2)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Normalize to 100%</button>
+            <button onClick={equalW} style={{padding:"4px 10px",borderRadius:5,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-2)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Equal weights</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ---- Main App ---- */
+const App = () => {
+  const [dark,setDark]=useState(false);
+  const [bizName,setBizName]=useState("");
+  const [scores,setScores]=useState({pricing:0,scale:0,barriers:0,network:0,moat:0,people:0,cash:0,stickiness:0});
+  const [notes,setNotes]=useState({pricing:"",pillars:"",people:"",cash:"",stickiness:""});
+  const [openCard,setOpenCard]=useState(null);
+  const [openSub,setOpenSub]=useState(null);
+  const [weights,setWeights]=useState([30,25,20,15,10]);
+
+  useEffect(function(){
+    if(dark)document.body.classList.add("dark");
+    else document.body.classList.remove("dark");
+  },[dark]);
+
+  var setScore=function(key,val){
+    setScores(function(prev){var n=Object.assign({},prev);n[key]=val;return n;});
+  };
+  var setNote=function(key,val){
+    setNotes(function(prev){var n=Object.assign({},prev);n[key]=val;return n;});
+  };
+  var reset=function(){
+    setBizName("");
+    setScores({pricing:0,scale:0,barriers:0,network:0,moat:0,people:0,cash:0,stickiness:0});
+    setNotes({pricing:"",pillars:"",people:"",cash:"",stickiness:""});
+    setWeights([30,25,20,15,10]);
+    setOpenCard(null);setOpenSub(null);
+  };
+
+  /* Pillar avg */
+  var subVals=[scores.scale,scores.barriers,scores.network,scores.moat];
+  var scoredSubs=subVals.filter(function(s){return s>0;});
+  var pillarsScore=scoredSubs.length>0?scoredSubs.reduce(function(a,b){return a+b;},0)/scoredSubs.length:0;
+
+  var mainScores=[scores.pricing,pillarsScore,scores.people,scores.cash,scores.stickiness];
+  var mainColors=["#1e40af","#6d28d9","#0d9488","#15803d","#b45309"];
+  var mainLabels=["Pricing","Pillars","People","Cash","Stickiness"];
+
+  /* Weighted avg */
+  var wSum=0,wTot=0;
+  mainScores.forEach(function(s,i){if(s>0){wSum+=s*weights[i];wTot+=weights[i];}});
+  var weightedAvg=wTot>0?wSum/wTot:0;
+
+  var getVerdict=function(avg){
+    if(avg===0)return null;
+    if(avg>=4.5)return{label:"Exceptional",desc:"Rare quality across all dimensions. High-conviction candidate.",color:"#16a34a"};
+    if(avg>=3.8)return{label:"Strong",desc:"Solid advantages across the framework. Worth deep diligence.",color:"#22c55e"};
+    if(avg>=3.0)return{label:"Average",desc:"Some real qualities but notable gaps. Proceed with specific concerns in mind.",color:"#eab308"};
+    if(avg>=2.0)return{label:"Below Average",desc:"Structural weaknesses that constrain long-term quality.",color:"#f97316"};
+    return{label:"Weak",desc:"Significant issues across multiple dimensions. High risk.",color:"#ef4444"};
+  };
+  var verdict=getVerdict(weightedAvg);
+  var pricingWarn=scores.pricing>0&&scores.pricing<3;
+
+  var getQScore=function(q){return q.id==="pillars"?pillarsScore:scores[q.id];};
+
+  return (
+    <div style={{maxWidth:860,margin:"0 auto",padding:"20px 16px 60px"}}>
+
+      {/* ── Top bar ── */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.5,color:"var(--text-4)",marginBottom:2}}>Framework</div>
+          <div style={{fontSize:22,fontWeight:900,color:"var(--text-1)"}}>Business Quality Scorecard</div>
+        </div>
+        <div style={{display:"flex",gap:7,marginTop:4}}>
+          <button onClick={reset} style={{padding:"6px 13px",borderRadius:6,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-3)",fontSize:12,fontWeight:600}}>↺ Reset</button>
+          <button onClick={function(){setDark(!dark);}} style={{padding:"6px 13px",borderRadius:6,border:"1px solid var(--border)",background:"var(--bg-btn)",color:"var(--text-3)",fontSize:12,fontWeight:600}}>{dark?"☀ Light":"☾ Dark"}</button>
+        </div>
+      </div>
+
+      {/* ── Header card: name + radar ── */}
+      <div className="card" style={{display:"grid",gridTemplateColumns:"1fr 230px",gap:20,marginBottom:14,alignItems:"start"}}>
+        <div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-4)",marginBottom:6}}>Business Being Analyzed</div>
+          <input type="text" value={bizName} onChange={function(e){setBizName(e.target.value);}} placeholder="Enter business name..."/>
+
+          {verdict&&(
+            <div style={{marginTop:14,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+              <div>
+                <div style={{fontSize:9,color:"var(--text-4)",fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,marginBottom:2}}>Weighted Score</div>
+                <div style={{fontSize:32,fontWeight:900,color:verdict.color,lineHeight:1}}>{weightedAvg.toFixed(1)}<span style={{fontSize:15,color:"var(--text-4)"}}>/5</span></div>
+              </div>
+              <div style={{background:verdict.color+"1a",border:"1px solid "+verdict.color+"44",borderRadius:7,padding:"6px 14px"}}>
+                <div style={{fontWeight:800,color:verdict.color,fontSize:15}}>{verdict.label}</div>
+              </div>
+              <p style={{color:"var(--text-3)",fontSize:12,lineHeight:1.6,flex:"1 1 180px"}}>{verdict.desc}</p>
+            </div>
+          )}
+
+          {!verdict&&(
+            <p style={{color:"var(--text-4)",fontSize:12,marginTop:12,lineHeight:1.6}}>Score each quality below — the radar chart and overall assessment will update live.</p>
+          )}
+
+          {pricingWarn&&(
+            <div style={{marginTop:12,background:"#fef3c7",border:"1px solid #fbbf24",borderLeft:"3px solid #f59e0b",borderRadius:6,padding:"8px 12px"}}>
+              <span style={{fontWeight:800,color:"#92400e",fontSize:12}}>⚠ Pricing Power alert: </span>
+              <span style={{color:"#78350f",fontSize:12}}>This is the master signal. A low score here constrains how good the business can be — regardless of strength in any other pillar.</span>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <RadarChart scores={mainScores} colors={mainColors} labels={mainLabels}/>
+          {verdict&&(
+            <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",marginTop:4}}>
+              {QUALITIES.map(function(q,i){
+                var s=getQScore(q);
+                return (
+                  <div key={q.id} style={{display:"flex",alignItems:"center",gap:3,fontSize:9,fontWeight:700,color:s>0?mainColors[i]:"var(--text-4)"}}>
+                    <span>{q.icon}</span>
+                    <span>{s>0?s.toFixed(1):"—"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Weight Editor ── */}
+      <WeightEditor weights={weights} setWeights={setWeights} qualities={QUALITIES}/>
+
+      {/* ── Quality Cards ── */}
+      {QUALITIES.map(function(q){
+        var isOpen=openCard===q.id;
+        var currentScore=getQScore(q);
+        return (
+          <div key={q.id} style={{background:"var(--bg-card)",border:"1px solid "+(isOpen?q.color:"var(--border)"),borderRadius:8,marginBottom:10,boxShadow:"var(--shadow-sm)",overflow:"hidden",transition:"border-color 0.2s"}}>
+
+            {/* Card header */}
+            <div onClick={function(){setOpenCard(isOpen?null:q.id);setOpenSub(null);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer",userSelect:"none"}}>
+              <span style={{fontSize:20,flexShrink:0}}>{q.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:800,color:"var(--text-1)",fontSize:14}}>{q.title}</div>
+                <div style={{fontSize:11,color:"var(--text-3)",marginTop:1}}>{q.subtitle}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                {currentScore>0&&<span style={{fontSize:11,fontWeight:700,color:q.color,whiteSpace:"nowrap"}}>{currentScore.toFixed(1)} — {SCORE_LABELS[Math.round(currentScore)]}</span>}
+                <div onClick={function(e){e.stopPropagation();}}>
+                  {q.id==="pillars"
+                    ?<MiniDots value={pillarsScore} color={q.color} size={11}/>
+                    :<MiniDots value={scores[q.id]} color={q.color} size={11}/>
+                  }
+                </div>
+                <span style={{color:"var(--text-4)",fontSize:13,marginLeft:4}}>{isOpen?"▲":"▼"}</span>
+              </div>
+            </div>
+
+            {/* Expanded body */}
+            {isOpen&&(
+              <div style={{borderTop:"1px solid var(--border)",background:"var(--bg-inner)",padding:"16px"}}>
+                <p style={{color:"var(--text-3)",fontSize:12,lineHeight:1.7,marginBottom:16,fontStyle:"italic"}}>{q.description}</p>
+
+                {q.subs?(
+                  /* Supporting Pillars: sub-cards */
+                  <div>
+                    <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-4)",marginBottom:8}}>Score each pillar independently</div>
+                    {q.subs.map(function(sub){
+                      var isSubOpen=openSub===sub.id;
+                      return (
+                        <div key={sub.id} style={{background:"var(--bg-card)",border:"1px solid "+(isSubOpen?sub.color:"var(--border)"),borderRadius:7,marginBottom:8,overflow:"hidden",transition:"border-color 0.2s"}}>
+                          <div onClick={function(){setOpenSub(isSubOpen?null:sub.id);}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",cursor:"pointer"}}>
+                            <div style={{width:8,height:8,borderRadius:"50%",background:sub.color,flexShrink:0}}/>
+                            <span style={{fontWeight:700,color:"var(--text-1)",fontSize:12,flex:1}}>{sub.title}</span>
+                            <div onClick={function(e){e.stopPropagation();}}>
+                              <MiniDots value={scores[sub.id]} color={sub.color} size={10}/>
+                            </div>
+                            {scores[sub.id]>0&&<span style={{fontSize:10,fontWeight:700,color:sub.color,marginLeft:4,whiteSpace:"nowrap"}}>{SCORE_LABELS[scores[sub.id]]}</span>}
+                            <span style={{color:"var(--text-4)",fontSize:11,marginLeft:6}}>{isSubOpen?"▲":"▼"}</span>
+                          </div>
+                          {isSubOpen&&(
+                            <div style={{borderTop:"1px solid var(--border)",padding:"13px"}}>
+                              <div style={{marginBottom:12}}>
+                                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:8}}>Score</div>
+                                <ScoreSelector value={scores[sub.id]} color={sub.color} onChange={function(v){setScore(sub.id,v);}}/>
+                              </div>
+                              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:8}}>Questions to consider</div>
+                              <Questions items={sub.questions} color={sub.color}/>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {pillarsScore>0&&(
+                      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"var(--bg-deep)",borderRadius:7,border:"1px solid var(--border)",marginBottom:12}}>
+                        <span style={{fontSize:10,color:"var(--text-4)",fontWeight:700,textTransform:"uppercase",letterSpacing:0.8}}>Pillars Average</span>
+                        <span style={{fontWeight:900,color:q.color,fontSize:16}}>{pillarsScore.toFixed(1)}</span>
+                        <span style={{fontSize:11,color:"var(--text-3)"}}>{SCORE_LABELS[Math.round(pillarsScore)]}</span>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:6}}>Notes on the four pillars</div>
+                      <textarea value={notes.pillars} onChange={function(e){setNote("pillars",e.target.value);}} placeholder="Your overall read on the four pillars..." rows={3}/>
+                    </div>
+                  </div>
+                ):(
+                  /* Standard quality card */
+                  <div>
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:10}}>Score</div>
+                      <ScoreSelector value={scores[q.id]} color={q.color} onChange={function(v){setScore(q.id,v);}}/>
+                    </div>
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:10}}>Questions to consider</div>
+                      <Questions items={q.questions} color={q.color}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:"var(--text-4)",marginBottom:6}}>Notes</div>
+                      <textarea value={notes[q.id]} onChange={function(e){setNote(q.id,e.target.value);}} placeholder={"Your analysis..."} rows={3}/>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* ── Verdict / Summary ── */}
+      {verdict&&(
+        <div className="card" style={{marginTop:6,borderLeft:"4px solid "+verdict.color}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:12,flexWrap:"wrap"}}>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,color:"var(--text-4)"}}>Summary</div>
+            <div style={{fontWeight:900,fontSize:20,color:verdict.color}}>{verdict.label}</div>
+            <div style={{fontWeight:900,fontSize:20,color:"var(--text-1)"}}>{weightedAvg.toFixed(1)}<span style={{fontSize:13,color:"var(--text-4)"}}>/5</span></div>
+            <p style={{color:"var(--text-3)",fontSize:12,flex:"1 1 200px"}}>{verdict.desc}</p>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:7}}>
+            {QUALITIES.map(function(q){
+              var s=getQScore(q);
+              return (
+                <div key={q.id} style={{textAlign:"center",padding:"10px 6px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid var(--border)"}}>
+                  <div style={{fontSize:18,marginBottom:3}}>{q.icon}</div>
+                  <div style={{fontSize:9,fontWeight:700,color:q.color,marginBottom:5,lineHeight:1.2}}>{q.title.split(" ")[0]}</div>
+                  <div style={{fontSize:17,fontWeight:900,color:s>0?q.color:"var(--text-4)"}}>{s>0?s.toFixed(1):"—"}</div>
+                  {s>0&&<div style={{fontSize:9,color:"var(--text-4)",marginTop:2}}>{SCORE_LABELS[Math.round(s)]}</div>}
+                </div>
+              );
+            })}
+          </div>
+
+          {pricingWarn&&(
+            <div style={{marginTop:10,background:"#fef3c7",border:"1px solid #fbbf24",borderLeft:"3px solid #f59e0b",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#78350f"}}>
+              <strong>Pricing power ({scores.pricing}/5)</strong> is the master signal. Even strong scores elsewhere cannot fully compensate for a weak reading here.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
