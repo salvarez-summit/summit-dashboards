@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brink's Latinoamérica - Dashboard 2025</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a4d8f;
+      --primary-dark: #0f2d54;
+      --accent: #e67e22;
+      --success: #27ae60;
+      --warning: #f39c12;
+      --danger: #e74c3c;
+      --neutral-50: #fafafa;
+      --neutral-100: #f5f5f5;
+      --neutral-200: #e5e5e5;
+      --neutral-300: #d4d4d4;
+      --neutral-700: #404040;
+      --neutral-800: #262626;
+      --neutral-900: #171717;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(135deg, var(--neutral-50) 0%, #fff 100%);
+      color: var(--neutral-800);
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(26, 77, 143, 0.2);
+    }
+    
+    h1 {
+      font-family: 'Crimson Pro', serif;
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    
+    .subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+    
+    .chart-section {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 1px solid var(--neutral-200);
+    }
+    
+    .chart-section:hover {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+    }
+    
+    .chart-header {
+      margin-bottom: 2rem;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 1rem;
+    }
+    
+    h2 {
+      font-family: 'Crimson Pro', serif;
+      font-size: 2rem;
+      color: var(--primary-dark);
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+    
+    .chart-subtitle {
+      color: var(--neutral-700);
+      font-size: 1rem;
+      font-style: italic;
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 450px;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      background: #fafafa;
+      border-radius: 12px;
+    }
+    
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    
+    .insight-card {
+      background: var(--neutral-50);
+      border-left: 4px solid var(--primary);
+      padding: 1.5rem;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .insight-card:hover {
+      background: var(--neutral-100);
+      transform: translateX(4px);
+    }
+    
+    .insight-card h3 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1.1rem;
+      color: var(--primary-dark);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .insight-card p {
+      color: var(--neutral-700);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    .metric {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin: 0.25rem 0;
+    }
+    
+    .metric.positive {
+      background: var(--success);
+    }
+    
+    .metric.negative {
+      background: var(--danger);
+    }
+    
+    .metric.neutral {
+      background: var(--neutral-700);
+    }
+    
+    .management-quote {
+      background: linear-gradient(135deg, #fff9f0 0%, #fff 100%);
+      border-left: 4px solid var(--accent);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-top: 2rem;
+      font-style: italic;
+      color: var(--neutral-800);
+    }
+    
+    .management-quote::before {
+      content: '💬';
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+    
+    .icon {
+      font-size: 1.2rem;
+    }
+    
+    .highlight {
+      background: linear-gradient(120deg, #fef6e4 0%, #f3d250 100%);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .subtitle {
+        font-size: 1rem;
+      }
+      
+      .chart-section {
+        padding: 1.5rem;
+      }
+      
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .chart-container {
+        height: 350px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Brink's Latinoamérica</h1>
+      <p class="subtitle">Análisis de Performance 2018-2025 | Dashboard Interactivo</p>
+    </header>
+
+    <!-- GRÁFICA 1: Revenue by Region -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>1. Revenue por Región</h2>
+        <p class="chart-subtitle">Evolución del ingreso consolidado de Brink's por segmento geográfico (2018-2025)</p>
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="chart1"></canvas>
+      </div>
+      
+      <div class="insight-grid">
+        <div class="insight-card">
+          <h3><span class="icon">📊</span> Qué muestra</h3>
+          <p>Esta gráfica compara el crecimiento de revenue entre las 4 regiones de Brink's. <span class="highlight">Latinoamérica es la única región que no ha crecido</span> desde 2018, manteniéndose prácticamente flat en ~$1,300M mientras North America y Europa han crecido significativamente.</p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">📈</span> Cambio 2024 → 2025</h3>
+          <p>
+            • <strong>North America:</strong> $1,650M → $1,743M <span class="metric positive">+5.6%</span><br>
+            • <strong>Latinoamérica:</strong> $1,311M → $1,290M <span class="metric negative">-2%</span><br>
+            • <strong>Europa:</strong> $1,227M → $1,430M <span class="metric positive">+16.5%</span><br>
+            • <strong>Rest of World:</strong> $824M → $800M <span class="metric negative">-2.9%</span>
+          </p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">💬</span> Lo que dijo el Management</h3>
+          <p>En el Q4 2025 earnings call, el CFO destacó que <strong>Latinoamérica logró +5% de crecimiento orgánico</strong> a pesar del impacto cambiario. El revenue total cayó -2% debido principalmente al <span class="highlight">efecto FX de Argentina (-8%)</span>.</p>
+        </div>
+      </div>
+      
+      <div class="management-quote">
+        <strong>Kurt McMaken (CFO):</strong> "Latin America delivered solid organic growth of 5% in 2025, though reported revenue declined due to the significant foreign exchange headwinds from Argentina's highly inflationary accounting treatment."
+      </div>
+    </div>
+
+    <!-- GRÁFICA 2: Revenue by Country (LatAm) -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>2. Revenue por País (Latinoamérica)</h2>
+        <p class="chart-subtitle">Desglose de los 3 principales mercados del segmento LatAm (2018-2025)</p>
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="chart2"></canvas>
+      </div>
+      
+      <div class="insight-grid">
+        <div class="insight-card">
+          <h3><span class="icon">📊</span> Qué muestra</h3>
+          <p>El contraste dramático entre <span class="highlight">México (crecimiento sostenido)</span> versus Brasil y Argentina (caídas estructurales). México pasó de $365M (2018) a $576M (2025), mientras Brasil cayó de $405M a $285M y Argentina de $247M a $168M.</p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">📈</span> Cambio 2024 → 2025</h3>
+          <p>
+            • <strong>México:</strong> $583M → $576M <span class="metric negative">-1.2%</span><br>
+            <em style="font-size: 0.85rem; color: var(--neutral-700);">Primera caída después de años de crecimiento sostenido. Probable normalización post-spike de 2023 (+24.5%).</em><br><br>
+            • <strong>Brasil:</strong> $283M → $285M <span class="metric positive">+0.7%</span><br>
+            <em style="font-size: 0.85rem; color: var(--neutral-700);">Señales de estabilización después de años de caídas.</em><br><br>
+            • <strong>Argentina:</strong> $191M → $168M <span class="metric negative">-12.0%</span><br>
+            <em style="font-size: 0.85rem; color: var(--neutral-700);">Continúa el deterioro por hiperinflación y devaluación.</em>
+          </p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">💬</span> Lo que dijo el Management</h3>
+          <p><strong>No hay menciones específicas de México en el earnings call.</strong> El crecimiento orgánico de +5% en LatAm sugiere que México debe haber crecido 7-9% para compensar las caídas de Brasil y Argentina.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRÁFICA 3: Percentage by Country -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>3. Participación por País (% de Latinoamérica)</h2>
+        <p class="chart-subtitle">Evolución del mix de revenue dentro del segmento LatAm (2018-2025)</p>
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="chart3"></canvas>
+      </div>
+      
+      <div class="insight-grid">
+        <div class="insight-card">
+          <h3><span class="icon">📊</span> Qué muestra</h3>
+          <p>La transformación del mix de Latinoamérica: <span class="highlight">México pasó de 28.5% a 44.7%</span>, casi duplicando su peso relativo. Brasil cayó de 31.6% a 22.1% y Argentina de 19.3% a 13.0%. <strong>México ya representa casi la mitad de todo el segmento.</strong></p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">📈</span> Cambio 2024 → 2025</h3>
+          <p>
+            • <strong>México:</strong> 44.5% → 44.7% <span class="metric neutral">+0.2pp</span><br>
+            <em style="font-size: 0.85rem;">Continúa ganando peso a pesar de caída en revenue absoluto.</em><br><br>
+            • <strong>Brasil:</strong> 21.6% → 22.1% <span class="metric positive">+0.5pp</span><br>
+            <em style="font-size: 0.85rem;">Ligera recuperación por estabilización.</em><br><br>
+            • <strong>Argentina:</strong> 14.5% → 13.0% <span class="metric negative">-1.5pp</span><br>
+            <em style="font-size: 0.85rem;">Continúa perdiendo relevancia en el mix regional.</em>
+          </p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">💡</span> Implicación Estratégica</h3>
+          <p><strong>México es ahora el pilar fundamental de Latinoamérica.</strong> Con casi 45% del revenue, cualquier desaceleración en México tendría impacto material en todo el segmento. La diversificación geográfica de LatAm ha disminuido significativamente.</p>
+        </div>
+      </div>
+      
+      <div class="management-quote">
+        <strong>Análisis:</strong> Sin México creciendo sostenidamente, el segmento de Latinoamérica estaría en decline estructural del -5% a -10% anual. México no solo está compensando las caídas de Brasil y Argentina, sino que está permitiendo al segmento mantener márgenes sólidos.
+      </div>
+    </div>
+
+    <!-- GRÁFICA 4: Operating Margin by Region -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>4. Margen Operativo por Región</h2>
+        <p class="chart-subtitle">Rentabilidad operativa de cada segmento geográfico (2018-2025)</p>
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="chart4"></canvas>
+      </div>
+      
+      <div class="insight-grid">
+        <div class="insight-card">
+          <h3><span class="icon">📊</span> Qué muestra</h3>
+          <p>Latinoamérica históricamente ha tenido <span class="highlight">los mejores márgenes operativos</span> de Brink's, alcanzando un peak de 20.8% en 2020-2021. Sin embargo, en 2025 muestra una caída notable a 18.9%, mientras Rest of World ahora lidera con 22.3%.</p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">📈</span> Cambio 2024 → 2025</h3>
+          <p>
+            • <strong>Latinoamérica:</strong> 20.8% → 18.9% <span class="metric negative">-1.9pp</span><br>
+            <em style="font-size: 0.85rem;">Mayor caída entre todos los segmentos.</em><br><br>
+            • <strong>North America:</strong> 11.8% → 14.2% <span class="metric positive">+2.4pp</span><br>
+            • <strong>Europa:</strong> 11.2% → 12.4% <span class="metric positive">+1.2pp</span><br>
+            • <strong>Rest of World:</strong> 20.5% → 22.3% <span class="metric positive">+1.8pp</span>
+          </p>
+        </div>
+        
+        <div class="insight-card">
+          <h3><span class="icon">💬</span> Lo que dijo el Management</h3>
+          <p>El CFO mencionó que la presión en márgenes de LatAm se debe principalmente a <strong>"Argentina highly inflationary accounting"</strong> que generó pérdidas de $12.5M en 2025 (vs $1.3M en 2024). Esto representa ~1% de caída de margen solo por Argentina.</p>
+        </div>
+      </div>
+      
+      <div class="management-quote">
+        <strong>Kurt McMaken (CFO):</strong> "The Latin America segment margin compression of 190 basis points was driven primarily by Argentina's highly inflationary accounting treatment, which resulted in $12.5 million of currency remeasurement losses in 2025. Despite this headwind, the segment maintained a strong EBITDA margin of 23.3%, second-best globally."
+      </div>
+      
+      <div style="margin-top: 2rem; padding: 1.5rem; background: var(--neutral-100); border-radius: 8px;">
+        <h3 style="color: var(--primary-dark); margin-bottom: 1rem;">🔍 Drivers de la Caída de Márgenes en LatAm:</h3>
+        <ol style="margin-left: 1.5rem; line-height: 1.8;">
+          <li><strong>Argentina distorsiona resultados:</strong> $12.5M en pérdidas no-cash (~1% de margen)</li>
+          <li><strong>Presión de costos:</strong> Inflación salarial en México, combustible</li>
+          <li><strong>Mix de negocios:</strong> AMS/DRS solo 20% en LatAm (vs 31% NA, 43% Europa)</li>
+          <li><strong>Bajo CapEx:</strong> LatAm recibe solo $33M/año (menor inversión = menor eficiencia futura)</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Configuración global de Chart.js
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
+    Chart.defaults.color = '#404040';
+    
+    // Colores para los años (gradiente de azul claro a oscuro)
+    const yearColors = [
+      '#bfdbfe', // 2018 - muy claro
+      '#93c5fd', // 2019
+      '#60a5fa', // 2020
+      '#3b82f6', // 2021
+      '#2563eb', // 2022
+      '#1d4ed8', // 2023
+      '#1e40af', // 2024
+      '#1e3a8a'  // 2025 - muy oscuro
+    ];
+
+    // Chart 1: Revenue by Region (invertido)
+    new Chart(document.getElementById('chart1'), {
+      type: 'bar',
+      data: {
+        labels: ['North America', 'Latin America', 'Europe', 'Rest of World'],
+        datasets: [
+          {
+            label: '2018',
+            data: [1101, 1282, 613, 442],
+            backgroundColor: yearColors[0],
+            borderRadius: 6,
+          },
+          {
+            label: '2019',
+            data: [1370, 1320, 550, 440],
+            backgroundColor: yearColors[1],
+            borderRadius: 6,
+          },
+          {
+            label: '2020',
+            data: [1261, 1072, 754, 604],
+            backgroundColor: yearColors[2],
+            borderRadius: 6,
+          },
+          {
+            label: '2021',
+            data: [1407, 1126, 917, 750],
+            backgroundColor: yearColors[3],
+            borderRadius: 6,
+          },
+          {
+            label: '2022',
+            data: [1584, 1211, 931, 809],
+            backgroundColor: yearColors[4],
+            borderRadius: 6,
+          },
+          {
+            label: '2023',
+            data: [1601, 1332, 1137, 804],
+            backgroundColor: yearColors[5],
+            borderRadius: 6,
+          },
+          {
+            label: '2024',
+            data: [1650, 1311, 1227, 824],
+            backgroundColor: yearColors[6],
+            borderRadius: 6,
+          },
+          {
+            label: '2025',
+            data: [1743, 1290, 1430, 800],
+            backgroundColor: yearColors[7],
+            borderRadius: 6,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              padding: 15,
+              font: { size: 12, weight: '600' }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14, weight: '600' },
+            bodyFont: { size: 13 },
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': $' + context.parsed.y + 'M';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '$' + value + 'M';
+              }
+            },
+            grid: {
+              color: '#e5e5e5'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+
+    // Chart 2: Revenue by Country (LatAm) - invertido
+    new Chart(document.getElementById('chart2'), {
+      type: 'bar',
+      data: {
+        labels: ['México', 'Brasil', 'Argentina'],
+        datasets: [
+          {
+            label: '2018',
+            data: [365, 405, 247],
+            backgroundColor: yearColors[0],
+            borderRadius: 6,
+          },
+          {
+            label: '2019',
+            data: [414, 440, 214],
+            backgroundColor: yearColors[1],
+            borderRadius: 6,
+          },
+          {
+            label: '2020',
+            data: [366, 315, 171],
+            backgroundColor: yearColors[2],
+            borderRadius: 6,
+          },
+          {
+            label: '2021',
+            data: [416, 304, 178],
+            backgroundColor: yearColors[3],
+            borderRadius: 6,
+          },
+          {
+            label: '2022',
+            data: [453, 330, 204],
+            backgroundColor: yearColors[4],
+            borderRadius: 6,
+          },
+          {
+            label: '2023',
+            data: [564, 310, 207],
+            backgroundColor: yearColors[5],
+            borderRadius: 6,
+          },
+          {
+            label: '2024',
+            data: [583, 283, 191],
+            backgroundColor: yearColors[6],
+            borderRadius: 6,
+          },
+          {
+            label: '2025',
+            data: [576, 285, 168],
+            backgroundColor: yearColors[7],
+            borderRadius: 6,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              padding: 15,
+              font: { size: 12, weight: '600' }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14, weight: '600' },
+            bodyFont: { size: 13 },
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': $' + context.parsed.y + 'M';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '$' + value + 'M';
+              }
+            },
+            grid: {
+              color: '#e5e5e5'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+
+    // Chart 3: Percentage by Country - invertido
+    new Chart(document.getElementById('chart3'), {
+      type: 'bar',
+      data: {
+        labels: ['México', 'Brasil', 'Argentina'],
+        datasets: [
+          {
+            label: '2018',
+            data: [28.5, 31.6, 19.3],
+            backgroundColor: yearColors[0],
+            borderRadius: 6,
+          },
+          {
+            label: '2019',
+            data: [31.4, 33.4, 16.2],
+            backgroundColor: yearColors[1],
+            borderRadius: 6,
+          },
+          {
+            label: '2020',
+            data: [34.2, 29.4, 16.0],
+            backgroundColor: yearColors[2],
+            borderRadius: 6,
+          },
+          {
+            label: '2021',
+            data: [37.0, 27.0, 15.8],
+            backgroundColor: yearColors[3],
+            borderRadius: 6,
+          },
+          {
+            label: '2022',
+            data: [37.4, 27.3, 16.8],
+            backgroundColor: yearColors[4],
+            borderRadius: 6,
+          },
+          {
+            label: '2023',
+            data: [42.3, 23.3, 15.5],
+            backgroundColor: yearColors[5],
+            borderRadius: 6,
+          },
+          {
+            label: '2024',
+            data: [44.5, 21.6, 14.5],
+            backgroundColor: yearColors[6],
+            borderRadius: 6,
+          },
+          {
+            label: '2025',
+            data: [44.7, 22.1, 13.0],
+            backgroundColor: yearColors[7],
+            borderRadius: 6,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              padding: 15,
+              font: { size: 12, weight: '600' }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14, weight: '600' },
+            bodyFont: { size: 13 },
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 50,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            },
+            grid: {
+              color: '#e5e5e5'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+
+    // Chart 4: Operating Margin by Region - invertido
+    new Chart(document.getElementById('chart4'), {
+      type: 'bar',
+      data: {
+        labels: ['North America', 'Latin America', 'Europe', 'Rest of World'],
+        datasets: [
+          {
+            label: '2018',
+            data: [0.0, 0.0, 0.0, 0.0],
+            backgroundColor: yearColors[0],
+            borderRadius: 6,
+          },
+          {
+            label: '2019',
+            data: [2.4, 7.1, 2.3, 4.9],
+            backgroundColor: yearColors[1],
+            borderRadius: 6,
+          },
+          {
+            label: '2020',
+            data: [7.3, 21.8, 6.8, 19.4],
+            backgroundColor: yearColors[2],
+            borderRadius: 6,
+          },
+          {
+            label: '2021',
+            data: [10.5, 22.9, 9.8, 17.5],
+            backgroundColor: yearColors[3],
+            borderRadius: 6,
+          },
+          {
+            label: '2022',
+            data: [10.0, 22.9, 10.6, 20.2],
+            backgroundColor: yearColors[4],
+            borderRadius: 6,
+          },
+          {
+            label: '2023',
+            data: [11.6, 21.0, 11.0, 20.4],
+            backgroundColor: yearColors[5],
+            borderRadius: 6,
+          },
+          {
+            label: '2024',
+            data: [11.8, 20.8, 11.2, 20.5],
+            backgroundColor: yearColors[6],
+            borderRadius: 6,
+          },
+          {
+            label: '2025',
+            data: [14.2, 18.9, 12.4, 22.3],
+            backgroundColor: yearColors[7],
+            borderRadius: 6,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              padding: 15,
+              font: { size: 12, weight: '600' }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14, weight: '600' },
+            bodyFont: { size: 13 },
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 25,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            },
+            grid: {
+              color: '#e5e5e5'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
